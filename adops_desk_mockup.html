@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AdOps Desk — Рабочий стол менеджера</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2535;
+    --surface3: #252d40;
+    --border: #2a3347;
+    --border2: #3a4560;
+    --text: #e2e8f0;
+    --text2: #8b99b5;
+    --text3: #5a6880;
+    --accent: #3b82f6;
+    --accent-dim: rgba(59,130,246,0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --yellow: #f59e0b;
+    --yellow-dim: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --cyan: #06b6d4;
+    --cyan-dim: rgba(6,182,212,0.12);
+    --purple: #a855f7;
+    --purple-dim: rgba(168,85,247,0.12);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --sidebar-w: 220px;
+    --topbar-h: 56px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; overflow-x: hidden; }
+
+  /* TOPBAR */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; z-index: 100; gap: 16px;
+  }
+  .topbar-brand {
+    font-family: var(--mono); font-weight: 600; font-size: 15px;
+    color: var(--accent); letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .topbar-brand span { color: var(--text2); font-weight: 400; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .btn-type {
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-type:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+  .btn-type.open { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .btn-type.top { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .btn-type.change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .btn-type.tech { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+  .topbar-user {
+    font-family: var(--mono); font-size: 12px; color: var(--text2);
+    white-space: nowrap; display: flex; align-items: center; gap: 8px;
+  }
+  .user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+  /* LAYOUT */
+  .layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w); min-height: calc(100vh - var(--topbar-h));
+    background: var(--surface); border-right: 1px solid var(--border);
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+    display: flex; flex-direction: column; overflow-y: auto; z-index: 50;
+  }
+  .sidebar-section { padding: 16px 0 8px; }
+  .sidebar-label {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase; padding: 0 16px 8px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    cursor: pointer; transition: all 0.12s; border-left: 2px solid transparent;
+    font-size: 13px; color: var(--text2);
+  }
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); border-left-color: var(--border2); }
+  .sidebar-item.active { background: var(--accent-dim); color: var(--accent); border-left-color: var(--accent); }
+  .sidebar-item .icon { font-size: 15px; width: 18px; text-align: center; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+  .sidebar-type-btn {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    cursor: pointer; font-size: 13px; color: var(--text2); transition: all 0.12s;
+    border-left: 2px solid transparent;
+  }
+  .sidebar-type-btn:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-type-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-w); flex: 1; padding: 24px; }
+
+  /* SUMMARY CARDS */
+  .summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .summary-card .label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .summary-card .value { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
+  .summary-card .sub { font-size: 11px; color: var(--text3); }
+  .c-new .value { color: var(--text); }
+  .c-work .value { color: var(--accent); }
+  .c-clarify .value { color: var(--yellow); }
+  .c-done .value { color: var(--green); }
+  .c-wait .value { color: var(--red); }
+
+  /* FILTERS */
+  .filters-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .filter-chip.f-new.active { background: var(--surface3); border-color: var(--border2); color: var(--text); }
+  .filter-chip.f-work.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .filter-chip.f-clarify.active { background: var(--yellow); border-color: var(--yellow); color: #000; }
+  .filter-chip.f-passed.active { background: var(--cyan); border-color: var(--cyan); color: #000; }
+  .filter-chip.f-done.active { background: var(--green); border-color: var(--green); color: #000; }
+  .filter-chip.f-complete.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  .search-box {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans);
+    font-size: 13px; outline: none; width: 200px;
+  }
+  .search-box::placeholder { color: var(--text3); }
+  .search-box:focus { border-color: var(--accent); }
+  .filters-spacer { flex: 1; }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 14px;
+    text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
+    background: var(--surface);
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr.selected { background: var(--accent-dim); }
+  td { padding: 12px 14px; font-size: 13px; vertical-align: middle; }
+  td.mono { font-family: var(--mono); font-size: 12px; }
+
+  .type-badge {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px;
+    font-family: var(--mono); font-size: 11px; font-weight: 500; white-space: nowrap;
+  }
+  .type-TOP { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .type-OPEN { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .type-CHANGE { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow); }
+  .type-TECH { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+    border-radius: 20px; font-size: 11px; font-family: var(--mono); white-space: nowrap;
+  }
+  .status-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .s-НОВАЯ { background: var(--surface3); color: var(--text2); }
+  .s-НОВАЯ::before { background: var(--text3); }
+  .s-РАБОТЕ { background: var(--accent-dim); color: var(--accent); }
+  .s-РАБОТЕ::before { background: var(--accent); }
+  .s-УТОЧНЕНИЕ { background: var(--yellow-dim); color: var(--yellow); }
+  .s-УТОЧНЕНИЕ::before { background: var(--yellow); }
+  .s-ПЕРЕДАНА { background: var(--cyan-dim); color: var(--cyan); }
+  .s-ПЕРЕДАНА::before { background: var(--cyan); }
+  .s-ИСПОЛНЕНА { background: var(--green-dim); color: var(--green); }
+  .s-ИСПОЛНЕНА::before { background: var(--green); }
+  .s-ВЫПОЛНЕНА { background: rgba(34,197,94,0.25); color: var(--green); border: 1px solid var(--green); }
+  .s-ВЫПОЛНЕНА::before { background: var(--green); }
+
+  .wait-cell { font-family: var(--mono); font-size: 12px; }
+  .wait-ok { color: var(--text3); }
+  .wait-warn { color: var(--yellow); }
+  .wait-crit { color: var(--red); font-weight: 600; }
+
+  .action-btn {
+    padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 11px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  .action-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* DETAIL PANEL */
+  .detail-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .detail-overlay.open { opacity: 1; pointer-events: all; }
+  .detail-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 520px;
+    background: var(--surface); border-left: 1px solid var(--border);
+    z-index: 201; display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .detail-panel.open { transform: translateX(0); }
+  .detail-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    flex-shrink: 0;
+  }
+  .detail-id { font-family: var(--mono); font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .detail-title { font-size: 16px; font-weight: 600; }
+  .close-btn {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .close-btn:hover { background: var(--surface3); color: var(--text); }
+  .detail-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .detail-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+  }
+
+  /* Status actions */
+  .status-btn {
+    padding: 7px 14px; border-radius: 6px; font-size: 12px; font-family: var(--mono);
+    cursor: pointer; border: 1px solid; transition: all 0.15s; font-weight: 500;
+  }
+  .sb-work { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .sb-work:hover { background: var(--accent); color: #fff; }
+  .sb-clarify { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .sb-clarify:hover { background: var(--yellow); color: #000; }
+  .sb-done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .sb-done:hover { background: var(--green); color: #000; }
+  .sb-complete { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .sb-complete:hover { background: var(--green); color: #000; }
+  .sb-pass { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+  .sb-pass:hover { background: var(--cyan); color: #000; }
+
+  /* Detail fields */
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-field { display: flex; flex-direction: column; gap: 3px; }
+  .detail-field.full { grid-column: 1 / -1; }
+  .field-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .field-value { font-size: 13px; color: var(--text); }
+  .field-value.mono { font-family: var(--mono); font-size: 12px; }
+  .field-value.highlight { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+
+  /* Log */
+  .log-list { display: flex; flex-direction: column; gap: 0; }
+  .log-item {
+    display: flex; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { font-family: var(--mono); color: var(--text3); white-space: nowrap; font-size: 11px; flex-shrink: 0; }
+  .log-author { color: var(--accent); font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .log-text { color: var(--text2); }
+  .log-status-change { color: var(--text); }
+
+  /* NEW REQUEST PANEL */
+  .new-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 560px;
+    background: var(--surface); border-left: 1px solid var(--border);
+    z-index: 201; display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  .new-panel.open { transform: translateX(0); }
+  .new-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .new-header-title { font-size: 16px; font-weight: 600; }
+  .new-type-tabs { display: flex; gap: 6px; padding: 16px 24px 0; flex-shrink: 0; }
+  .new-tab {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.12s;
+  }
+  .new-tab.active.t-open { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .new-tab.active.t-top { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .new-tab.active.t-change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .new-tab.active.t-tech { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+  .new-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .new-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block; font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .form-label .req { color: var(--accent); margin-left: 2px; }
+  .form-label .opt { color: var(--text3); font-weight: 400; font-size: 9px; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans);
+    font-size: 13px; outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-select option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-divider {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; margin: 20px 0 12px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .file-upload-area {
+    border: 1px dashed var(--border2); border-radius: 6px; padding: 20px;
+    text-align: center; cursor: pointer; transition: all 0.15s; color: var(--text3);
+    font-size: 12px;
+  }
+  .file-upload-area:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+  .btn-primary {
+    padding: 9px 20px; border-radius: 6px; border: none;
+    background: var(--accent); color: #fff; font-family: var(--sans);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary {
+    padding: 9px 20px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-family: var(--sans);
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--surface3); color: var(--text); }
+
+  /* Sidebar filter active indicator */
+  .sidebar-count {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    background: var(--surface3); color: var(--text3); padding: 2px 6px; border-radius: 10px;
+  }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 600; }
+  .section-sub { font-size: 12px; color: var(--text3); font-family: var(--mono); }
+
+  .hidden { display: none !important; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
+    background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 12px 20px; font-size: 13px; color: var(--text); z-index: 500;
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1); white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+
+  .table-form-section { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">ADOPS<span>DESK</span></div>
+  <div class="topbar-actions">
+    <button class="btn-type open" onclick="openNew('OPEN')">+ Создать кабинет</button>
+    <button class="btn-type top" onclick="openNew('TOP')">+ Пополнить</button>
+    <button class="btn-type change" onclick="openNew('CHANGE')">+ Изменить</button>
+    <button class="btn-type tech" onclick="openNew('TECH')">+ Тех. вопрос</button>
+  </div>
+  <div class="topbar-user">
+    <div class="user-dot"></div>
+    Иванова А.С. · менеджер
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Площадки</div>
+      <div class="sidebar-item active" onclick="filterBy('platform', 'all', this)">
+        <span class="icon">◈</span> Все площадки
+        <span class="sidebar-count">24</span>
+      </div>
+      <div class="sidebar-item" onclick="filterBy('platform', 'VK', this)">
+        <span class="icon">◻</span> VK Реклама
+        <span class="sidebar-count">8</span>
+      </div>
+      <div class="sidebar-item" onclick="filterBy('platform', 'Яндекс', this)">
+        <span class="icon">◻</span> Яндекс Директ
+        <span class="sidebar-count">9</span>
+      </div>
+      <div class="sidebar-item" onclick="filterBy('platform', 'МТС', this)">
+        <span class="icon">◻</span> МТС Маркетолог
+        <span class="sidebar-count">4</span>
+      </div>
+      <div class="sidebar-item" onclick="filterBy('platform', 'myTarget', this)">
+        <span class="icon">◻</span> myTarget
+        <span class="sidebar-count">3</span>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Агентства</div>
+      <div class="sidebar-item" onclick="filterBy('agency', 'all', this)">
+        <span class="icon">◈</span> Все агентства
+      </div>
+      <div class="sidebar-item" onclick="filterBy('agency', 'КЛЕ048', this)">
+        <span class="icon">◻</span> Клевер Медиа
+      </div>
+      <div class="sidebar-item" onclick="filterBy('agency', 'ПРМ012', this)">
+        <span class="icon">◻</span> Примус Диджитал
+      </div>
+      <div class="sidebar-item" onclick="filterBy('agency', 'АРТ091', this)">
+        <span class="icon">◻</span> Артель РА
+      </div>
+      <div class="sidebar-item" onclick="filterBy('agency', 'НОВ055', this)">
+        <span class="icon">◻</span> Новый Формат
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Документы</div>
+      <div class="sidebar-item" onclick="showToast('Раздел в разработке')">
+        <span class="icon">◻</span> Договоры
+      </div>
+      <div class="sidebar-item" onclick="showToast('Раздел в разработке')">
+        <span class="icon">◻</span> Шаблоны писем
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Создать заявку</div>
+      <div class="sidebar-type-btn" onclick="openNew('OPEN')">
+        <div class="dot" style="background:var(--green)"></div> Создать кабинет
+      </div>
+      <div class="sidebar-type-btn" onclick="openNew('TOP')">
+        <div class="dot" style="background:var(--accent)"></div> Пополнить
+      </div>
+      <div class="sidebar-type-btn" onclick="openNew('CHANGE')">
+        <div class="dot" style="background:var(--yellow)"></div> Изменить
+      </div>
+      <div class="sidebar-type-btn" onclick="openNew('TECH')">
+        <div class="dot" style="background:var(--purple)"></div> Тех. вопрос
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- SUMMARY -->
+    <div class="summary-row">
+      <div class="summary-card c-new">
+        <div class="label">Новые</div>
+        <div class="value" id="cnt-new">7</div>
+        <div class="sub">ждут назначения</div>
+      </div>
+      <div class="summary-card c-work">
+        <div class="label">В работе</div>
+        <div class="value" id="cnt-work">11</div>
+        <div class="sub">у внутреннего отдела</div>
+      </div>
+      <div class="summary-card c-clarify">
+        <div class="label">Уточнение</div>
+        <div class="value" id="cnt-clarify">3</div>
+        <div class="sub">требуют действия</div>
+      </div>
+      <div class="summary-card c-done">
+        <div class="label">Исполнено</div>
+        <div class="value" id="cnt-done">5</div>
+        <div class="sub">ждут подтверждения</div>
+      </div>
+      <div class="summary-card c-wait">
+        <div class="label">Просрочено</div>
+        <div class="value" id="cnt-overdue">2</div>
+        <div class="sub">&gt; 24 часов без движения</div>
+      </div>
+    </div>
+
+    <!-- SECTION HEADER -->
+    <div class="section-header">
+      <div>
+        <div class="section-title">Заявки</div>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters-row">
+      <button class="filter-chip f-all active" onclick="filterStatus('all', this)">Все</button>
+      <button class="filter-chip f-new" onclick="filterStatus('НОВАЯ', this)">Новая</button>
+      <button class="filter-chip f-work" onclick="filterStatus('В РАБОТЕ', this)">В работе</button>
+      <button class="filter-chip f-clarify" onclick="filterStatus('УТОЧНЕНИЕ', this)">Уточнение</button>
+      <button class="filter-chip f-passed" onclick="filterStatus('ПЕРЕДАНА', this)">Передана</button>
+      <button class="filter-chip f-done" onclick="filterStatus('ИСПОЛНЕНА', this)">Исполнена</button>
+      <button class="filter-chip f-complete" onclick="filterStatus('ВЫПОЛНЕНА', this)">Выполнена</button>
+      <div class="filters-spacer"></div>
+      <input class="search-box" type="text" placeholder="Поиск по аккаунту, РА..." oninput="searchTable(this.value)">
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Площадка</th>
+            <th>РА</th>
+            <th>Тип</th>
+            <th>Аккаунт / Кабинет</th>
+            <th>Клиент (ЮЛ)</th>
+            <th>Статус</th>
+            <th>Ожидание</th>
+            <th>Действие</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <div>
+      <div class="detail-id" id="d-id">—</div>
+      <div class="detail-title" id="d-title">—</div>
+    </div>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </div>
+  <div class="detail-body" id="d-body">
+  </div>
+  <div class="detail-footer" id="d-footer">
+  </div>
+</div>
+
+<!-- NEW REQUEST OVERLAY -->
+<div class="detail-overlay" id="new-overlay" onclick="closeNew()"></div>
+
+<!-- NEW REQUEST PANEL -->
+<div class="new-panel" id="new-panel">
+  <div class="new-header">
+    <div class="new-header-title" id="new-title">Новая заявка</div>
+    <button class="close-btn" onclick="closeNew()">×</button>
+  </div>
+  <div class="new-type-tabs">
+    <button class="new-tab t-open" id="ntab-OPEN" onclick="switchNewType('OPEN')">Создать</button>
+    <button class="new-tab t-top" id="ntab-TOP" onclick="switchNewType('TOP')">Пополнить</button>
+    <button class="new-tab t-change" id="ntab-CHANGE" onclick="switchNewType('CHANGE')">Изменить</button>
+    <button class="new-tab t-tech" id="ntab-TECH" onclick="switchNewType('TECH')">Тех. вопрос</button>
+  </div>
+  <div class="new-body" id="new-body">
+  </div>
+  <div class="new-footer">
+    <button class="btn-primary" onclick="submitNew()">Создать заявку</button>
+    <button class="btn-secondary" onclick="closeNew()">Отмена</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ======= DATA =======
+const ACCOUNTS = ['ВН_Й ЖУРНАЛ__VK__ВИНОУ','Скартел_ВК_Профи','МедиаГрупп_Яндекс_МГ01','РусТрейд_МТС_RT22','Промо_VK_Клевер','Цифра_Яндекс_Ц48','ТехноПарк_myTarget_ТП','Альфа_Медиа_VK_АМ','СтройГрупп_Яндекс_СГ','Ритейл_МТС_Р11','Фуд_VK_Ф03','Авто_Яндекс_А99'];
+const PLATFORMS = ['VK Реклама','Яндекс Директ','МТС Маркетолог','myTarget'];
+const AGENCIES = ['Клевер Медиа','Примус Диджитал','Артель РА','Новый Формат'];
+const CLIENTS = ['ООО "Виноу Студия"','АО "Скартел"','ООО "МедиаГрупп"','ООО "РусТрейд"','ИП Козлов А.В.','ООО "Цифровые Решения"','АО "ТехноПарк"','ООО "Альфа Медиа"','ООО "СтройГрупп"','ИП Петров В.И.','ООО "Фуд Сервис"','АО "АвтоГрупп"'];
+const STATUSES = ['НОВАЯ','В РАБОТЕ','УТОЧНЕНИЕ','ПЕРЕДАНА','ИСПОЛНЕНА','ВЫПОЛНЕНА'];
+const TYPES = ['TOP','OPEN','CHANGE','TECH'];
+const PLATFORM_MAP = {'VK':0,'Яндекс':1,'МТС':2,'myTarget':3};
+
+let allRows = [];
+let selectedRow = null;
+let currentFilter = 'all';
+let currentPlatform = 'all';
+let currentAgency = 'all';
+let newType = 'OPEN';
+let nextId = 25;
+
+function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function rndN(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+function genRows(){
+  const rows = [];
+  const data = [
+    {id:'AO-001',platform:'VK Реклама',agency:'Клевер Медиа',type:'TOP',account:'ВН_Й ЖУРНАЛ__VK__ВИНОУ',client:'ООО "Виноу Студия"',status:'НОВАЯ',wait:1,amount:150000},
+    {id:'AO-002',platform:'Яндекс Директ',agency:'Примус Диджитал',type:'OPEN',account:'МедиаГрупп_Яндекс_МГ01',client:'ООО "МедиаГрупп"',status:'В РАБОТЕ',wait:5,amount:null},
+    {id:'AO-003',platform:'VK Реклама',agency:'Артель РА',type:'CHANGE',account:'Скартел_ВК_Профи',client:'АО "Скартел"',status:'УТОЧНЕНИЕ',wait:8,amount:null},
+    {id:'AO-004',platform:'МТС Маркетолог',agency:'Новый Формат',type:'TOP',account:'РусТрейд_МТС_RT22',client:'ООО "РусТрейд"',status:'ПЕРЕДАНА',wait:12,amount:300000},
+    {id:'AO-005',platform:'Яндекс Директ',agency:'Клевер Медиа',type:'TOP',account:'Цифра_Яндекс_Ц48',client:'ООО "Цифровые Решения"',status:'ИСПОЛНЕНА',wait:3,amount:75000},
+    {id:'AO-006',platform:'myTarget',agency:'Примус Диджитал',type:'TECH',account:'ТехноПарк_myTarget_ТП',client:'АО "ТехноПарк"',status:'НОВАЯ',wait:0,amount:null},
+    {id:'AO-007',platform:'VK Реклама',agency:'Артель РА',type:'OPEN',account:'Альфа_Медиа_VK_АМ',client:'ООО "Альфа Медиа"',status:'В РАБОТЕ',wait:7,amount:null},
+    {id:'AO-008',platform:'Яндекс Директ',agency:'Новый Формат',type:'TOP',account:'СтройГрупп_Яндекс_СГ',client:'ООО "СтройГрупп"',status:'ВЫПОЛНЕНА',wait:0,amount:200000},
+    {id:'AO-009',platform:'МТС Маркетолог',agency:'Клевер Медиа',type:'TECH',account:'Ритейл_МТС_Р11',client:'ИП Петров В.И.',status:'ПЕРЕДАНА',wait:26,amount:null},
+    {id:'AO-010',platform:'VK Реклама',agency:'Примус Диджитал',type:'TOP',account:'Промо_VK_Клевер',client:'ИП Козлов А.В.',status:'НОВАЯ',wait:2,amount:50000},
+    {id:'AO-011',platform:'Яндекс Директ',agency:'Артель РА',type:'CHANGE',account:'СтройГрупп_Яндекс_СГ',client:'ООО "СтройГрупп"',status:'В РАБОТЕ',wait:4,amount:null},
+    {id:'AO-012',platform:'myTarget',agency:'Новый Формат',type:'OPEN',account:'Авто_Яндекс_А99',client:'АО "АвтоГрупп"',status:'ИСПОЛНЕНА',wait:2,amount:null},
+    {id:'AO-013',platform:'VK Реклама',agency:'Клевер Медиа',type:'TOP',account:'Фуд_VK_Ф03',client:'ООО "Фуд Сервис"',status:'НОВАЯ',wait:1,amount:120000},
+    {id:'AO-014',platform:'Яндекс Директ',agency:'Примус Диджитал',type:'TECH',account:'МедиаГрупп_Яндекс_МГ01',client:'ООО "МедиаГрупп"',status:'УТОЧНЕНИЕ',wait:31,amount:null},
+    {id:'AO-015',platform:'МТС Маркетолог',agency:'Артель РА',type:'TOP',account:'РусТрейд_МТС_RT22',client:'ООО "РусТрейд"',status:'В РАБОТЕ',wait:6,amount:450000},
+  ];
+  return data;
+}
+
+allRows = genRows();
+
+function waitClass(h){ if(h===0) return 'wait-ok'; if(h<8) return 'wait-ok'; if(h<24) return 'wait-warn'; return 'wait-crit'; }
+function waitLabel(h){ if(h===0) return '< 1 ч'; return h+' ч'; }
+
+function renderTable(){
+  const tbody = document.getElementById('table-body');
+  let rows = allRows;
+
+  if(currentFilter !== 'all') rows = rows.filter(r=>r.status===currentFilter);
+  if(currentPlatform !== 'all') rows = rows.filter(r=>r.platform.includes(currentPlatform));
+  if(currentAgency !== 'all') rows = rows.filter(r=>r.agency===currentAgency);
+
+  const q = document.querySelector('.search-box')?.value?.toLowerCase();
+  if(q) rows = rows.filter(r=>(r.account+r.agency+r.client).toLowerCase().includes(q));
+
+  tbody.innerHTML = rows.map(r=>`
+    <tr onclick="openDetail('${r.id}')" class="${selectedRow===r.id?'selected':''}">
+      <td class="mono" style="color:var(--text3)">${r.id}</td>
+      <td>${r.platform}</td>
+      <td style="color:var(--text2)">${r.agency}</td>
+      <td><span class="type-badge type-${r.type}">${r.type}</span></td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.account}">${r.account}</td>
+      <td style="color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.client}">${r.client}</td>
+      <td><span class="status-badge s-${r.status.replace(' ','')}">${r.status}</span></td>
+      <td class="wait-cell ${waitClass(r.wait)}">${waitLabel(r.wait)}</td>
+      <td><button class="action-btn" onclick="event.stopPropagation();openDetail('${r.id}')">Открыть →</button></td>
+    </tr>
+  `).join('');
+
+  updateCounters();
+}
+
+function updateCounters(){
+  document.getElementById('cnt-new').textContent = allRows.filter(r=>r.status==='НОВАЯ').length;
+  document.getElementById('cnt-work').textContent = allRows.filter(r=>r.status==='В РАБОТЕ'||r.status==='УТОЧНЕНИЕ').length;
+  document.getElementById('cnt-clarify').textContent = allRows.filter(r=>r.status==='УТОЧНЕНИЕ').length;
+  document.getElementById('cnt-done').textContent = allRows.filter(r=>r.status==='ИСПОЛНЕНА').length;
+  document.getElementById('cnt-overdue').textContent = allRows.filter(r=>r.wait>24&&r.status!=='ВЫПОЛНЕНА').length;
+}
+
+function filterStatus(status, el){
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = status;
+  renderTable();
+}
+
+function filterBy(type, val, el){
+  const section = el.closest('.sidebar-section');
+  section.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  if(type==='platform') currentPlatform = val;
+  if(type==='agency'){ currentAgency = val; }
+  renderTable();
+}
+
+function searchTable(q){ renderTable(); }
+
+// ======= DETAIL PANEL =======
+const LOG_TEMPLATES = [
+  (r)=>`Заявка создана из email · источник: ${r.agency}`,
+  ()=>`Статус изменён: НОВАЯ → В РАБОТЕ`,
+  ()=>`Комментарий: уточняем реквизиты рекламодателя у клиента`,
+  ()=>`Статус изменён: В РАБОТЕ → ПЕРЕДАНА площадке`,
+  ()=>`Ответ от площадки получен, аккаунт создан`,
+  ()=>`Статус изменён: ИСПОЛНЕНА → ВЫПОЛНЕНА · клиент уведомлён`,
+];
+
+function openDetail(id){
+  selectedRow = id;
+  const r = allRows.find(x=>x.id===id);
+  if(!r) return;
+
+  document.getElementById('d-id').textContent = r.id;
+  document.getElementById('d-title').textContent = r.account;
+
+  const logEntries = buildLog(r);
+  const statusBtns = buildStatusBtns(r);
+
+  document.getElementById('d-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Основное</div>
+      <div class="detail-grid">
+        <div class="detail-field">
+          <div class="field-label">Тип заявки</div>
+          <div class="field-value"><span class="type-badge type-${r.type}">${r.type}</span></div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Статус</div>
+          <div class="field-value"><span class="status-badge s-${r.status.replace(' ','')}">${r.status}</span></div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Площадка</div>
+          <div class="field-value">${r.platform}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Агентство (РА)</div>
+          <div class="field-value">${r.agency}</div>
+        </div>
+        <div class="detail-field full">
+          <div class="field-label">Аккаунт / Кабинет</div>
+          <div class="field-value mono">${r.account}</div>
+        </div>
+        <div class="detail-field full">
+          <div class="field-label">Клиент (юр. лицо)</div>
+          <div class="field-value">${r.client}</div>
+        </div>
+        ${r.amount?`<div class="detail-field full">
+          <div class="field-label">Сумма пополнения</div>
+          <div class="field-value highlight">${r.amount.toLocaleString('ru-RU')} ₽ <span style="color:var(--text3);font-size:11px">до НДС</span></div>
+        </div>`:''}
+        <div class="detail-field">
+          <div class="field-label">ИНН рекламодателя</div>
+          <div class="field-value mono">77${Math.floor(Math.random()*100000000).toString().padStart(8,'0')}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Номер ИД</div>
+          <div class="field-value mono">ИД-${Math.floor(Math.random()*9000)+1000}/2024</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Ожидание</div>
+          <div class="field-value ${waitClass(r.wait)}" style="font-family:var(--mono)">${waitLabel(r.wait)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Создана</div>
+          <div class="field-value mono" style="color:var(--text3)">${randomDate()}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">История изменений</div>
+      <div class="log-list">
+        ${logEntries}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('d-footer').innerHTML = statusBtns;
+
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+  renderTable();
+}
+
+function buildLog(r){
+  const authors = ['Система','Иванова А.С.','Смирнов К.Р.','Орлова Т.В.'];
+  const times = ['09:14','10:32','11:05','13:47','15:20','16:58'];
+  const date = '10.04';
+
+  let entries = [`
+    <div class="log-item">
+      <span class="log-time">${date} 09:14</span>
+      <span class="log-author">Система</span>
+      <span class="log-text">Заявка создана, статус: <span class="log-status-change">НОВАЯ</span></span>
+    </div>
+  `];
+
+  if(r.status!=='НОВАЯ'){
+    entries.push(`
+      <div class="log-item">
+        <span class="log-time">${date} 10:32</span>
+        <span class="log-author">Смирнов К.Р.</span>
+        <span class="log-text">Статус → <span class="log-status-change">В РАБОТЕ</span> · взял в работу</span>
+      </div>
+    `);
+  }
+  if(r.status==='УТОЧНЕНИЕ'||r.status==='ПЕРЕДАНА'||r.status==='ИСПОЛНЕНА'||r.status==='ВЫПОЛНЕНА'){
+    entries.push(`
+      <div class="log-item">
+        <span class="log-time">${date} 11:48</span>
+        <span class="log-author">Иванова А.С.</span>
+        <span class="log-text">Статус → <span class="log-status-change">${r.status==='УТОЧНЕНИЕ'?'УТОЧНЕНИЕ':'ПЕРЕДАНА'}</span> · запрос площадке отправлен</span>
+      </div>
+    `);
+  }
+  if(r.status==='ИСПОЛНЕНА'||r.status==='ВЫПОЛНЕНА'){
+    entries.push(`
+      <div class="log-item">
+        <span class="log-time">${date} 14:22</span>
+        <span class="log-author">Смирнов К.Р.</span>
+        <span class="log-text">Статус → <span class="log-status-change">ИСПОЛНЕНА</span> · ответ от площадки получен</span>
+      </div>
+    `);
+  }
+  if(r.status==='ВЫПОЛНЕНА'){
+    entries.push(`
+      <div class="log-item">
+        <span class="log-time">${date} 15:10</span>
+        <span class="log-author">Иванова А.С.</span>
+        <span class="log-text">Статус → <span class="log-status-change">ВЫПОЛНЕНА</span> · клиент уведомлён</span>
+      </div>
+    `);
+  }
+  return entries.join('');
+}
+
+function buildStatusBtns(r){
+  const s = r.status;
+  let btns = '';
+  if(s==='НОВАЯ') btns += `<button class="status-btn sb-work" onclick="changeStatus('${r.id}','В РАБОТЕ')">→ В работе</button>`;
+  if(s==='НОВАЯ'||s==='В РАБОТЕ') btns += `<button class="status-btn sb-clarify" onclick="changeStatus('${r.id}','УТОЧНЕНИЕ')">↔ Уточнение</button>`;
+  if(s==='В РАБОТЕ'||s==='УТОЧНЕНИЕ') btns += `<button class="status-btn sb-pass" onclick="changeStatus('${r.id}','ПЕРЕДАНА')">→ Передана</button>`;
+  if(s==='ПЕРЕДАНА'||s==='В РАБОТЕ') btns += `<button class="status-btn sb-done" onclick="changeStatus('${r.id}','ИСПОЛНЕНА')">✓ Исполнена</button>`;
+  if(s==='ИСПОЛНЕНА') btns += `<button class="status-btn sb-complete" onclick="changeStatus('${r.id}','ВЫПОЛНЕНА')">✓✓ Выполнена</button>`;
+  if(s==='УТОЧНЕНИЕ') btns += `<button class="status-btn sb-work" onclick="changeStatus('${r.id}','В РАБОТЕ')">↩ В работу</button>`;
+  return btns;
+}
+
+function changeStatus(id, newStatus){
+  const r = allRows.find(x=>x.id===id);
+  if(!r) return;
+  const old = r.status;
+  r.status = newStatus;
+  if(newStatus==='ВЫПОЛНЕНА'||newStatus==='ИСПОЛНЕНА') r.wait = 0;
+  showToast(`${id}: ${old} → ${newStatus}`,'success');
+  openDetail(id);
+  renderTable();
+}
+
+function closeDetail(){
+  selectedRow = null;
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+  renderTable();
+}
+
+function randomDate(){
+  const d = Math.floor(Math.random()*10)+1;
+  const h = Math.floor(Math.random()*8)+9;
+  const m = Math.floor(Math.random()*60).toString().padStart(2,'0');
+  return `0${d}.04.2026 ${h}:${m}`;
+}
+
+// ======= NEW PANEL =======
+const FORM_OPEN = `
+  <div class="form-divider">Площадка и кабинет</div>
+  <div class="form-group">
+    <label class="form-label">Площадка <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите площадку</option>
+      <option>VK Реклама</option>
+      <option>Яндекс Директ</option>
+      <option>МТС Маркетолог</option>
+      <option>myTarget</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Название кабинета <span class="req">*</span></label>
+    <input class="form-input" type="text" placeholder="Как будет называться в системе">
+  </div>
+  <div class="form-divider">Рекламодатель</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Юр. лицо рекламодателя <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder='ООО "Название"'>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ИНН рекламодателя <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder="7700000000">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">ККТУ рекламодателя <span class="opt">необязательно</span></label>
+    <input class="form-input" type="text" placeholder="Код категории">
+  </div>
+  <div class="form-divider">Агентство (РА)</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Юр. лицо РА <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder='ООО "Агентство"'>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ИНН РА <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder="7700000000">
+    </div>
+  </div>
+  <div class="form-divider">Договор</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Номер ИД <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder="ИД-0000/2024">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Дата ИД <span class="req">*</span></label>
+      <input class="form-input" type="date">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Тип договора <span class="req">*</span></label>
+      <select class="form-select">
+        <option value="">Выберите тип</option>
+        <option>Агентский</option>
+        <option>Комиссионный</option>
+        <option>Сервисный</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Предмет договора <span class="req">*</span></label>
+      <input class="form-input" type="text" placeholder="Размещение рекламы">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
+    <input class="form-input" type="text" placeholder="email@example.com">
+  </div>
+`;
+
+const FORM_TOP = `
+  <div class="form-divider">Кабинет и сумма</div>
+  <div class="form-group">
+    <label class="form-label">Площадка <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите площадку</option>
+      <option>VK Реклама</option>
+      <option>Яндекс Директ</option>
+      <option>МТС Маркетолог</option>
+      <option>myTarget</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Название кабинета <span class="req">*</span></label>
+    <input class="form-input" type="text" placeholder="Начните вводить название...">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Сумма пополнения до НДС, ₽ <span class="req">*</span></label>
+    <input class="form-input" type="number" placeholder="150000">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Комментарий <span class="opt">необязательно</span></label>
+    <textarea class="form-textarea" placeholder="Дополнительная информация..."></textarea>
+  </div>
+`;
+
+const FORM_CHANGE = `
+  <div class="form-divider">Кабинет</div>
+  <div class="form-group">
+    <label class="form-label">Площадка <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите площадку</option>
+      <option>VK Реклама</option>
+      <option>Яндекс Директ</option>
+      <option>МТС Маркетолог</option>
+      <option>myTarget</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Название кабинета <span class="req">*</span></label>
+    <input class="form-input" type="text" placeholder="Начните вводить название...">
+  </div>
+  <div class="form-divider">Что изменить</div>
+  <div class="form-group">
+    <label class="form-label">Что нужно изменить <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите тип изменения</option>
+      <option>Смена агентства</option>
+      <option>Смена рекламодателя</option>
+      <option>Изменение договора</option>
+      <option>Выдача доступа</option>
+      <option>Смена названия кабинета</option>
+      <option>Другое</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Описание изменения <span class="req">*</span></label>
+    <textarea class="form-textarea" placeholder="Опишите что именно нужно изменить и на что..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
+    <input class="form-input" type="text" placeholder="email@example.com">
+  </div>
+`;
+
+const FORM_TECH = `
+  <div class="form-divider">Кабинет</div>
+  <div class="form-group">
+    <label class="form-label">Площадка <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите площадку</option>
+      <option>VK Реклама</option>
+      <option>Яндекс Директ</option>
+      <option>МТС Маркетолог</option>
+      <option>myTarget</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Название кабинета <span class="opt">необязательно</span></label>
+    <input class="form-input" type="text" placeholder="Если вопрос по конкретному кабинету">
+  </div>
+  <div class="form-divider">Проблема</div>
+  <div class="form-group">
+    <label class="form-label">Тема обращения <span class="req">*</span></label>
+    <select class="form-select">
+      <option value="">Выберите тему</option>
+      <option>Модерация объявления</option>
+      <option>Технический сбой</option>
+      <option>Проблема с оплатой</option>
+      <option>Блокировка аккаунта</option>
+      <option>Другое</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Описание проблемы <span class="req">*</span></label>
+    <textarea class="form-textarea" style="min-height:120px" placeholder="Опишите проблему подробно: что произошло, когда, как воспроизвести..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Прикрепить файлы <span class="opt">необязательно</span></label>
+    <div class="file-upload-area" onclick="showToast('Загрузка файлов — в финальной версии')">
+      ↑ Перетащите файлы или нажмите для выбора<br>
+      <span style="font-size:11px;margin-top:4px;display:block;color:var(--text3)">Скриншоты, логи, экспорты · до 10 МБ</span>
+    </div>
+  </div>
+`;
+
+const FORM_CONTENT = {OPEN:FORM_OPEN, TOP:FORM_TOP, CHANGE:FORM_CHANGE, TECH:FORM_TECH};
+const TYPE_LABELS = {OPEN:'Создать кабинет', TOP:'Пополнить кабинет', CHANGE:'Изменить данные', TECH:'Технический вопрос'};
+
+function openNew(type){
+  newType = type;
+  document.getElementById('new-overlay').classList.add('open');
+  document.getElementById('new-panel').classList.add('open');
+  switchNewType(type);
+}
+
+function switchNewType(type){
+  newType = type;
+  document.getElementById('new-title').textContent = TYPE_LABELS[type];
+  ['OPEN','TOP','CHANGE','TECH'].forEach(t=>{
+    const el = document.getElementById('ntab-'+t);
+    if(el) el.classList.toggle('active', t===type);
+  });
+  document.getElementById('new-body').innerHTML = FORM_CONTENT[type]||'';
+}
+
+function closeNew(){
+  document.getElementById('new-overlay').classList.remove('open');
+  document.getElementById('new-panel').classList.remove('open');
+}
+
+function submitNew(){
+  const id = 'AO-0'+nextId++;
+  const r = {
+    id, platform: rnd(PLATFORMS), agency: rnd(AGENCIES),
+    type: newType, account: 'Новый кабинет · ' + id,
+    client: rnd(CLIENTS), status: 'НОВАЯ', wait: 0, amount: newType==='TOP'?rndN(50000,500000):null
+  };
+  allRows.unshift(r);
+  closeNew();
+  renderTable();
+  showToast(`Заявка ${id} создана · статус НОВАЯ`, 'success');
+}
+
+// ======= TOAST =======
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type==='success'?' success':'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+renderTable();
+</script>
+</body>
+</html>
