@@ -1064,7 +1064,55 @@ function submitNew(){
   showToast(`Заявка ${id} создана · ${type}`, 'success');
 }
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
+// ── GOOGLE SHEETS INTEGRATION ─────────────────────────────────────────────────
+// После публикации Apps Script вставь сюда URL развёртывания
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzSf9QK3rjLPZp12EfNTbk0EjOng1seimaVsvwrXC79KcIH7K9LQtUt_hqv6f9JMiJE/exec';
+
+// Динамические справочники (заполняются из Sheets, до загрузки — дефолты)
+let AGENCIES_DATA  = [
+  {name:'Клевер Медиа',inn:''},
+  {name:'Примус Диджитал',inn:''},
+  {name:'Артель РА',inn:''},
+  {name:'Новый Формат',inn:''},
+];
+let PLATFORMS_DATA = ['VK Реклама','Яндекс Директ','МТС Маркетолог','myTarget'];
+let ACCOUNTS_DATA  = []; // заполнится из Sheets
+
+function loadRefs() {
+  if (!SHEETS_URL || SHEETS_URL.includes('ВСТАВЬ')) {
+    console.log('Sheets URL не задан — используем дефолтные справочники');
+    return;
+  }
+  fetch(SHEETS_URL + '?type=all')
+    .then(r => r.json())
+    .then(data => {
+      if (data.agencies && data.agencies.length) {
+        AGENCIES_DATA = data.agencies;
+        // Синхронизируем старый массив AGENCIES (используется в каскаде)
+        AGENCIES.length = 0;
+        data.agencies.forEach(a => AGENCIES.push(a.name));
+      }
+      if (data.platforms && data.platforms.length) {
+        PLATFORMS_DATA = data.platforms;
+        PLATFORMS.length = 0;
+        data.platforms.forEach(p => PLATFORMS.push(p));
+      }
+      if (data.accounts && data.accounts.length) {
+        ACCOUNTS_DATA = data.accounts;
+        // Перестраиваем CABINETS_FULL из реальных данных
+        Object.keys(CABINETS_FULL).forEach(k => delete CABINETS_FULL[k]);
+        data.accounts.forEach(a => {
+          if (!CABINETS_FULL[a.agency]) CABINETS_FULL[a.agency] = [];
+          CABINETS_FULL[a.agency].push({name: a.name, platform: a.platform});
+        });
+      }
+      showToast('Справочники загружены из Google Sheets ✓', 'success');
+      renderTable();
+    })
+    .catch(err => {
+      console.warn('Ошибка загрузки справочников:', err);
+    });
+}
 function showToast(msg, type){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1088,6 +1136,7 @@ function searchSidebar(input, listId, emptyId){
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 renderTable();
+loadRefs();
 </script>
 </body>
 </html>
