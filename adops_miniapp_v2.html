@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AdOps · Новая заявка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117; --surface: #161b27; --surface2: #1e2535; --surface3: #252d40;
+    --border: #2a3347; --border2: #3a4560;
+    --text: #e2e8f0; --text2: #8b99b5; --text3: #5a6880;
+    --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.12);
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.12);
+    --purple: #a855f7; --purple-dim: rgba(168,85,247,0.12);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; min-height: 100vh; overflow-x: hidden; }
+
+  .screen { display: none; flex-direction: column; min-height: 100vh; padding: 0 0 40px; }
+  .screen.active { display: flex; }
+
+  .header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .header-brand { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; }
+  .header-brand span { color: var(--text3); font-weight: 400; }
+  .header-step { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.08em; }
+  .header-title { font-size: 18px; font-weight: 600; color: var(--text); margin-top: 6px; }
+
+  .progress { display: flex; gap: 4px; padding: 12px 20px 0; background: var(--surface); }
+  .progress-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--surface3); transition: background 0.3s; }
+  .progress-dot.done { background: var(--accent); }
+  .progress-dot.active { background: var(--accent); opacity: 0.45; }
+
+  .content { flex: 1; padding: 20px; }
+
+  /* LOADER */
+  .loader-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; }
+  .loader-spinner { width: 36px; height: 36px; border: 3px solid var(--surface3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .loader-text { font-family: var(--mono); font-size: 12px; color: var(--text3); letter-spacing: 0.08em; }
+  .loader-error { text-align: center; }
+  .loader-error-icon { font-size: 32px; margin-bottom: 12px; }
+  .loader-error-text { font-family: var(--mono); font-size: 12px; color: var(--red); margin-bottom: 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* REF STATUS */
+  .ref-status { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .ref-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .ref-dot.ok { background: var(--green); }
+  .ref-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+  .ref-dot.err { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TYPE CARDS */
+  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .type-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 20px 16px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; gap: 8px; }
+  .type-card:active { transform: scale(0.97); }
+  .type-card.sel-top    { background: var(--accent-dim); border-color: var(--accent); }
+  .type-card.sel-open   { background: var(--green-dim);  border-color: var(--green); }
+  .type-card.sel-change { background: var(--yellow-dim); border-color: var(--yellow); }
+  .type-card.sel-tech   { background: var(--purple-dim); border-color: var(--purple); }
+  .type-card-label { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+  .lbl-top { color: var(--accent); } .lbl-open { color: var(--green); }
+  .lbl-change { color: var(--yellow); } .lbl-tech { color: var(--purple); }
+  .type-card-desc { font-size: 12px; color: var(--text3); line-height: 1.4; }
+
+  /* TABS */
+  .tabs { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
+  .tab { flex: 1; padding: 9px; border-radius: 8px; border: none; background: transparent; color: var(--text3); font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+  /* INPUTS */
+  .field-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; display: block; }
+  .req { color: var(--accent); margin-left: 2px; }
+  .opt { color: var(--text3); font-size: 9px; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-family: var(--sans); font-size: 14px; outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-input::placeholder, .form-textarea::placeholder { color: var(--text3); }
+  .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a6880' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  .form-select option { background: #1e2535; }
+  .form-textarea { resize: none; min-height: 150px; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+  .form-group { margin-bottom: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .section-divider { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; padding: 14px 0 10px; border-top: 1px solid var(--border); margin-top: 4px; }
+
+  /* PARSE BTN */
+  .parse-btn { width: 100%; margin-top: 12px; padding: 15px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-family: var(--sans); font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.15s; }
+  .parse-btn:active { transform: scale(0.98); }
+  .parse-btn:disabled { background: var(--surface3); color: var(--text3); }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+
+  .api-section { margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .api-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+
+  /* REVIEW */
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .review-card-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+  .rf { padding: 11px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .rf:last-child { border-bottom: none; }
+  .rf-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .rf-val { font-size: 14px; color: var(--text); font-weight: 500; word-break: break-word; }
+  .rf-val.mono { font-family: var(--mono); font-size: 13px; }
+  .rf-val.amt { color: var(--accent); font-family: var(--mono); font-size: 20px; font-weight: 600; }
+
+  /* MATCH BLOCKS */
+  .match-found     { margin: 0 0 12px; padding: 12px; border-radius: 10px; background: var(--green-dim); border: 1px solid var(--green); }
+  .match-not-found { margin: 0 0 12px; padding: 12px; border-radius: 10px; background: var(--red-dim);   border: 1px solid var(--red); }
+  .match-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .match-lbl.found { color: var(--green); } .match-lbl.nf { color: var(--red); }
+  .match-name { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 500; word-break: break-all; }
+  .match-meta { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-top: 3px; }
+
+  /* SIMILAR */
+  .similar-warn { margin: 0 0 12px; padding: 12px; border-radius: 10px; background: var(--yellow-dim); border: 1px solid var(--yellow); }
+  .similar-lbl { font-family: var(--mono); font-size: 10px; color: var(--yellow); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .similar-item { padding: 8px 10px; border-radius: 8px; background: rgba(245,158,11,0.07); border: 1px solid transparent; margin-bottom: 4px; cursor: pointer; }
+  .similar-item:last-child { margin-bottom: 0; }
+  .similar-item:active { border-color: var(--yellow); }
+  .similar-item-name { font-family: var(--mono); font-size: 12px; color: var(--text); word-break: break-all; }
+  .similar-item-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* ACCOUNT RESOLUTION */
+  .account-search-block { background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+  .account-search-tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .ast { flex: 1; padding: 10px; background: transparent; border: none; color: var(--text3); font-family: var(--sans); font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.12s; }
+  .ast.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-dim); }
+  .atp { padding: 12px; display: none; }
+  .atp.active { display: block; }
+  .manual-list { max-height: 200px; overflow-y: auto; margin-top: 8px; }
+  .manual-item { padding: 9px 10px; border-radius: 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .manual-item:last-child { border-bottom: none; }
+  .manual-item:active { background: var(--surface3); }
+  .manual-item-name { font-family: var(--mono); font-size: 12px; color: var(--text); word-break: break-all; }
+  .manual-item-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .manual-empty { padding: 10px; font-family: var(--mono); font-size: 12px; color: var(--text3); text-align: center; }
+
+  /* INLINE ACCOUNT (manual form) */
+  .inline-drop { background: var(--surface2); border: 1px solid var(--border2); border-top: none; border-radius: 0 0 10px 10px; max-height: 180px; overflow-y: auto; display: none; }
+  .iad-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .iad-item:last-child { border-bottom: none; }
+  .iad-item:active { background: var(--surface3); }
+  .iad-name { font-family: var(--mono); font-size: 12px; color: var(--text); word-break: break-all; }
+  .iad-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .acct-selected { margin-top: 6px; padding: 10px 12px; background: var(--green-dim); border: 1px solid var(--green); border-radius: 8px; display: none; }
+  .acct-selected-lbl { font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .acct-selected-name { font-family: var(--mono); font-size: 13px; color: var(--text); word-break: break-all; }
+  .acct-selected-meta { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .acct-change { margin-top: 5px; font-family: var(--mono); font-size: 10px; color: var(--text3); cursor: pointer; text-decoration: underline; }
+
+  /* BUTTONS */
+  .btn-primary   { width: 100%; padding: 15px; background: var(--green); border: none; border-radius: var(--radius); color: #000; font-family: var(--sans); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-primary:disabled { background: var(--surface3); color: var(--text3); }
+  .btn-secondary { width: 100%; padding: 14px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text2); font-family: var(--sans); font-size: 14px; cursor: pointer; margin-top: 8px; }
+  .btn-secondary:active { background: var(--surface2); }
+  .btn-accent { width: 100%; padding: 10px; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* CONFIDENCE */
+  .conf-row { margin-bottom: 14px; }
+  .conf-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .conf-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .conf-pct { font-family: var(--mono); font-size: 11px; }
+  .conf-track { height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+  /* CONFIRM */
+  .confirm-icon  { width: 64px; height: 64px; border-radius: 50%; background: var(--green-dim); border: 2px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 32px auto 20px; }
+  .confirm-title { text-align: center; font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .confirm-sub   { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.08em; margin-bottom: 28px; }
+  .confirm-card  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+  .confirm-head  { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .confirm-id    { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+  .confirm-status{ font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 20px; background: var(--green-dim); border: 1px solid var(--green); color: var(--green); letter-spacing: 0.06em; }
+  .cf { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+  .cf:last-child { border-bottom: none; }
+  .cf-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .cf-val { font-size: 14px; color: var(--text); font-weight: 500; word-break: break-word; }
+  .cf-val.amt { color: var(--accent); font-family: var(--mono); font-size: 20px; font-weight: 600; }
+  .btn-close { width: 100%; padding: 15px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text2); font-family: var(--sans); font-size: 15px; font-weight: 500; cursor: pointer; }
+
+  /* BADGE */
+  .type-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-family: var(--mono); font-size: 11px; font-weight: 600; border: 1px solid; letter-spacing: 0.04em; }
+  .badge-top    { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .badge-open   { background: var(--green-dim);  color: var(--green);  border-color: var(--green); }
+  .badge-change { background: var(--yellow-dim); color: var(--yellow); border-color: var(--yellow); }
+  .badge-tech   { background: var(--purple-dim); color: var(--purple); border-color: var(--purple); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--surface3); border: 1px solid var(--border2); border-radius: 10px; padding: 12px 20px; font-family: var(--mono); font-size: 12px; color: var(--text); z-index: 999; transition: transform 0.3s; white-space: nowrap; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.ok  { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red);   color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ══ LOADER ════════════════════════════════════════════════════════════ -->
+<div class="loader-screen" id="loader">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Загружаем справочник...</div>
+</div>
+
+<!-- ══ SCREEN 1: ТИП ═════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-1">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-brand">ADOPS<span>DESK</span></div>
+      <div class="header-step">Шаг 1 из 3</div>
+    </div>
+    <div class="header-title">Тип заявки</div>
+  </div>
+  <div class="progress">
+    <div class="progress-dot active"></div>
+    <div class="progress-dot"></div>
+    <div class="progress-dot"></div>
+  </div>
+  <div class="content">
+    <!-- Статус справочника -->
+    <div class="ref-status" id="ref-status">
+      <div class="ref-dot ok" id="ref-dot"></div>
+      <span id="ref-text">Справочник загружен</span>
+    </div>
+    <div class="type-grid">
+      <div class="type-card" id="card-top"    onclick="selectType('TOP')">
+        <div class="type-card-label lbl-top">TOP</div>
+        <div class="type-card-desc">Пополнить рекламный кабинет</div>
+      </div>
+      <div class="type-card" id="card-open"   onclick="selectType('OPEN')">
+        <div class="type-card-label lbl-open">OPEN</div>
+        <div class="type-card-desc">Создать новый кабинет</div>
+      </div>
+      <div class="type-card" id="card-change" onclick="selectType('CHANGE')">
+        <div class="type-card-label lbl-change">CHANGE</div>
+        <div class="type-card-desc">Изменить данные кабинета</div>
+      </div>
+      <div class="type-card" id="card-tech"   onclick="selectType('TECH')">
+        <div class="type-card-label lbl-tech">TECH</div>
+        <div class="type-card-desc">Технический вопрос</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2: ВВОД ════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-2">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-brand">ADOPS<span>DESK</span></div>
+      <div class="header-step">Шаг 2 из 3</div>
+    </div>
+    <div class="header-title" id="s2-title">Данные заявки</div>
+  </div>
+  <div class="progress">
+    <div class="progress-dot done"></div>
+    <div class="progress-dot active"></div>
+    <div class="progress-dot"></div>
+  </div>
+  <div class="content">
+    <div class="tabs">
+      <button class="tab active" id="tab-paste"  onclick="switchTab('paste')">Вставить текст</button>
+      <button class="tab"        id="tab-manual" onclick="switchTab('manual')">Заполнить вручную</button>
+    </div>
+
+    <!-- TAB: ТЕКСТ -->
+    <div id="panel-paste">
+      <div class="form-group">
+        <label class="field-label">Текст из письма или Telegram</label>
+        <textarea class="form-textarea" id="raw-input"
+          placeholder="Пополни, плиз, кабинет:&#10;700 000 руб. до НДС&#10;Кабинет: miranda.media.sc1 // RP // SC // Бабаевская Екатерина"></textarea>
+      </div>
+      <button class="parse-btn" id="parse-btn" onclick="runParse()">
+        <div class="spinner" id="spinner"></div>
+        <span id="parse-btn-text">Разобрать заявку</span>
+      </button>
+      <div class="api-section">
+        <div class="api-lbl">DeepSeek API Key</div>
+        <input type="password" class="form-input" id="api-key" placeholder="sk-...">
+      </div>
+    </div>
+
+    <!-- TAB: ВРУЧНУЮ -->
+    <div id="panel-manual" style="display:none">
+      <div id="manual-form-content"></div>
+      <button class="btn-primary" onclick="submitManual()">Далее →</button>
+    </div>
+
+    <button class="btn-secondary" onclick="goTo(1)">← Назад</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: ПРОВЕРКА ════════════════════════════════════════════════ -->
+<div class="screen" id="screen-3">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-brand">ADOPS<span>DESK</span></div>
+      <div class="header-step">Шаг 3 из 3</div>
+    </div>
+    <div class="header-title">Проверьте данные</div>
+  </div>
+  <div class="progress">
+    <div class="progress-dot done"></div>
+    <div class="progress-dot done"></div>
+    <div class="progress-dot active"></div>
+  </div>
+  <div class="content">
+    <div id="review-content"></div>
+    <button class="btn-primary" onclick="submitRequest()">Отправить заявку</button>
+    <button class="btn-secondary" onclick="goTo(2)">← Назад</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 4: ПОДТВЕРЖДЕНИЕ ══════════════════════════════════════════ -->
+<div class="screen" id="screen-4">
+  <div class="content">
+    <div class="confirm-icon">✓</div>
+    <div class="confirm-title">Заявка принята</div>
+    <div class="confirm-sub">ДОБАВЛЕНА В ОЧЕРЕДЬ</div>
+    <div class="confirm-card" id="confirm-card"></div>
+    <button class="btn-close" onclick="closeApp()">Закрыть</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// СПРАВОЧНИК
+// В продакшне: GET /api/accounts → [{name, platform, agency}, ...]
+// Здесь: фейковая загрузка с задержкой, имитирующая реальный API-запрос
+// ══════════════════════════════════════════════════════════════════════════
+
+const ACCOUNTS_FALLBACK = [
+  { name: 'miranda.media.sc1 // RP // SC //',  platform: 'ВКонтакте',      agency: 'Социал Крафт' },
+  { name: 'КП Пушкино Дом',                    platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'КП Пушкино Дом1',                   platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'КП Пушкино Дом2',                   platform: 'Яндекс Директ',  agency: 'Новый Формат' },
+  { name: 'ВН_Й ЖУРНАЛ__VK__ВИНОУ',            platform: 'VK Реклама',     agency: 'Клевер Медиа' },
+  { name: 'Цифра_Яндекс_Ц48',                  platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'Скартел_ВК_Профи',                  platform: 'VK Реклама',     agency: 'Артель РА' },
+  { name: 'МедиаГрупп_Яндекс_МГ01',           platform: 'Яндекс Директ',  agency: 'Примус Диджитал' },
+  { name: 'РусТрейд_МТС_RT22',                 platform: 'МТС Маркетолог', agency: 'Новый Формат' },
+  { name: 'ТехноПарк_myTarget_ТП',             platform: 'myTarget',        agency: 'Примус Диджитал' },
+  { name: 'Ритейл_МТС_Р11',                    platform: 'МТС Маркетолог', agency: 'Клевер Медиа' },
+  { name: 'СтройГрупп_Яндекс_СГ',             platform: 'Яндекс Директ',  agency: 'Артель РА' },
+  { name: 'Авто_Яндекс_А99',                   platform: 'myTarget',        agency: 'Новый Формат' },
+  { name: 'Фуд_VK_Ф03',                        platform: 'VK Реклама',     agency: 'Клевер Медиа' },
+];
+
+// URL вашего API — замените на реальный в продакшне
+const API_BASE = 'https://web-production-a93d0.up.railway.app/';
+
+let ACCOUNTS = [];  // заполняется при загрузке
+
+async function loadAccounts() {
+  try {
+    // В продакшне раскомментировать:
+    const resp = await fetch(API_BASE + '/api/accounts');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    ACCOUNTS = await resp.json();
+
+    // Имитация загрузки для теста (убрать в продакшне)
+    // await new Promise(r => setTimeout(r, 600));
+    // ACCOUNTS = ACCOUNTS_FALLBACK;
+
+    showRefStatus('ok', `Справочник загружен · ${ACCOUNTS.length} аккаунтов`);
+  } catch(e) {
+    // Если API недоступен — работаем с fallback
+    ACCOUNTS = ACCOUNTS_FALLBACK;
+    showRefStatus('err', `API недоступен · используем кэш (${ACCOUNTS.length})`);
+  }
+
+  document.getElementById('loader').style.display = 'none';
+  goTo(1);
+}
+
+function showRefStatus(state, text) {
+  document.getElementById('ref-dot').className = 'ref-dot ' + state;
+  document.getElementById('ref-text').textContent = text;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MATCHING — без LLM, чистый JS
+// Три результата: exact | similar (2-3 кандидата) | not_found
+// ══════════════════════════════════════════════════════════════════════════
+
+function normalize(s) {
+  return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function matchAccount(rawName) {
+  if (!rawName) return { type: 'not_found', exact: null, similar: [] };
+
+  const q = normalize(rawName);
+
+  // 1. Точное совпадение
+  const exact = ACCOUNTS.find(a => normalize(a.name) === q);
+  if (exact) {
+    // Ищем похожие (startsWith) — предупреждение для менеджера
+    const similar = ACCOUNTS.filter(a => {
+      const n = normalize(a.name);
+      return n !== q && n.startsWith(q);
+    });
+    return { type: 'exact', exact, similar };
+  }
+
+  // 2. Похожие по startsWith (клиент написал короче чем в справочнике)
+  const similar = ACCOUNTS.filter(a => {
+    const n = normalize(a.name);
+    return n.startsWith(q) || q.startsWith(n);
+  });
+  if (similar.length) return { type: 'similar', exact: null, similar };
+
+  // 3. Не найдено
+  return { type: 'not_found', exact: null, similar: [] };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════
+
+const TYPE_LABELS = {
+  TOP: 'Пополнение кабинета', OPEN: 'Создание кабинета',
+  CHANGE: 'Изменение данных', TECH: 'Технический вопрос',
+};
+
+let currentType    = null;
+let parseResult    = null;
+let matchedAccount = null;
+let inputMode      = 'paste';
+
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ══════════════════════════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════════════════════════
+
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + n).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCREEN 1
+// ══════════════════════════════════════════════════════════════════════════
+
+function selectType(type) {
+  currentType = type; parseResult = null; matchedAccount = null;
+  ['top','open','change','tech'].forEach(t =>
+    document.getElementById('card-' + t).className = 'type-card'
+  );
+  document.getElementById('card-' + type.toLowerCase()).className = 'type-card sel-' + type.toLowerCase();
+  document.getElementById('s2-title').textContent = TYPE_LABELS[type];
+  renderManualForm();
+  setTimeout(() => goTo(2), 160);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCREEN 2: TABS
+// ══════════════════════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  document.getElementById('tab-paste').classList.toggle('active',  tab === 'paste');
+  document.getElementById('tab-manual').classList.toggle('active', tab === 'manual');
+  document.getElementById('panel-paste').style.display  = tab === 'paste'  ? 'block' : 'none';
+  document.getElementById('panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MANUAL FORM
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderManualForm() {
+  const t = currentType;
+  const agencyOptions = [...new Set(ACCOUNTS.map(a => a.agency))]
+    .map(a => `<option>${esc(a)}</option>`).join('');
+  let html = '';
+
+  if (t === 'TOP' || t === 'CHANGE' || t === 'TECH') {
+    const req = t !== 'TECH';
+    html += `<div class="form-group">
+      <label class="field-label">Аккаунт ${req ? '<span class="req">*</span>' : '<span class="opt">необязательно</span>'}</label>
+      <input class="form-input" id="mf-acct-search" type="text" placeholder="Начните вводить название..."
+        oninput="filterInlineAccounts(this.value)" style="border-radius:10px 10px 0 0" autocomplete="off">
+      <div class="inline-drop" id="mf-acct-drop"></div>
+      <div class="acct-selected" id="mf-acct-selected">
+        <div class="acct-selected-lbl">Выбран</div>
+        <div class="acct-selected-name" id="mf-acct-name"></div>
+        <div class="acct-selected-meta" id="mf-acct-meta"></div>
+        <div class="acct-change" onclick="clearAccountSelection()">изменить</div>
+      </div>
+      <div style="margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--text3)" id="mf-manual-link-wrap">
+        или <span style="color:var(--accent);cursor:pointer;text-decoration:underline" onclick="showManualAccountInput()">ввести вручную</span>
+      </div>
+      <input class="form-input" id="mf-acct-manual" type="text" placeholder="Название аккаунта вручную" style="display:none;margin-top:8px">
+    </div>`;
+  }
+
+  if (t === 'TOP') {
+    html += `<div class="form-group">
+      <label class="field-label">Сумма пополнения, руб. до НДС <span class="req">*</span></label>
+      <input class="form-input" id="mf-amount" type="number" placeholder="150000">
+    </div>
+    <div class="form-group">
+      <label class="field-label">Комментарий <span class="opt">необязательно</span></label>
+      <input class="form-input" id="mf-comment" type="text" placeholder="Дополнительная информация">
+    </div>`;
+  }
+
+  if (t === 'OPEN') {
+    html += `<div class="form-group">
+      <label class="field-label">Площадка <span class="req">*</span></label>
+      <select class="form-select" id="mf-platform">
+        <option value="">Выберите площадку</option>
+        <option>VK Реклама</option><option>Яндекс Директ</option>
+        <option>МТС Маркетолог</option><option>myTarget</option>
+        <option>Telegram Ads</option><option>Авито Реклама</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Агентство (РА) <span class="req">*</span></label>
+      <select class="form-select" id="mf-agency">
+        <option value="">Выберите агентство</option>${agencyOptions}
+      </select>
+    </div>
+    <div class="section-divider">Рекламодатель</div>
+    <div class="form-group">
+      <label class="field-label">Юр. лицо <span class="req">*</span></label>
+      <input class="form-input" id="mf-client" type="text" placeholder='ООО "Название"'>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="field-label">ИНН <span class="req">*</span></label>
+        <input class="form-input" id="mf-inn" type="text" placeholder="7700000000">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="field-label">Договор № <span class="opt">необяз.</span></label>
+        <input class="form-input" id="mf-contract" type="text" placeholder="ИД-0000/24">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <label class="field-label">Доступы выдать на <span class="opt">необязательно</span></label>
+      <input class="form-input" id="mf-access" type="email" placeholder="email@example.com">
+    </div>
+    <div class="form-group">
+      <label class="field-label">Сумма пополнения <span class="opt">необязательно</span></label>
+      <input class="form-input" id="mf-amount" type="number" placeholder="Если нужно сразу OPEN+TOP">
+    </div>`;
+  }
+
+  if (t === 'CHANGE') {
+    html += `<div class="form-group">
+      <label class="field-label">Тип изменения <span class="req">*</span></label>
+      <select class="form-select" id="mf-change-type">
+        <option value="">Выберите</option>
+        <option>Смена агентства</option><option>Смена рекламодателя</option>
+        <option>Изменение договора</option><option>Выдача доступа</option><option>Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Описание <span class="opt">необязательно</span></label>
+      <textarea class="form-textarea" id="mf-comment" placeholder="Что изменить..." style="min-height:90px"></textarea>
+    </div>`;
+  }
+
+  if (t === 'TECH') {
+    html += `<div class="form-group">
+      <label class="field-label">Тема <span class="req">*</span></label>
+      <select class="form-select" id="mf-topic">
+        <option value="">Выберите тему</option>
+        <option>Модерация объявления</option><option>Технический сбой</option>
+        <option>Проблема с оплатой</option><option>Блокировка аккаунта</option><option>Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Описание <span class="req">*</span></label>
+      <textarea class="form-textarea" id="mf-comment" placeholder="Что произошло, когда..."></textarea>
+    </div>`;
+  }
+
+  document.getElementById('manual-form-content').innerHTML = html;
+}
+
+function filterInlineAccounts(q) {
+  const drop = document.getElementById('mf-acct-drop');
+  if (!drop) return;
+  if (!q) { drop.style.display = 'none'; return; }
+  const filtered = ACCOUNTS.filter(a => normalize(a.name).includes(normalize(q))).slice(0, 20);
+  if (!filtered.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = filtered.map(a => `
+    <div class="iad-item" onclick="selectInlineAccount(${JSON.stringify(a.name)},${JSON.stringify(a.platform)},${JSON.stringify(a.agency)})">
+      <div class="iad-name">${esc(a.name)}</div>
+      <div class="iad-meta">${esc(a.platform)} · ${esc(a.agency)}</div>
+    </div>`).join('');
+  drop.style.display = 'block';
+}
+
+function selectInlineAccount(name, platform, agency) {
+  matchedAccount = { name, platform, agency };
+  document.getElementById('mf-acct-search').style.display   = 'none';
+  document.getElementById('mf-acct-drop').style.display     = 'none';
+  document.getElementById('mf-acct-name').textContent       = name;
+  document.getElementById('mf-acct-meta').textContent       = platform + ' · ' + agency;
+  document.getElementById('mf-acct-selected').style.display = 'block';
+  const lw = document.getElementById('mf-manual-link-wrap');
+  if (lw) lw.style.display = 'none';
+  const mi = document.getElementById('mf-acct-manual');
+  if (mi) mi.style.display = 'none';
+}
+
+function clearAccountSelection() {
+  matchedAccount = null;
+  document.getElementById('mf-acct-search').style.display   = 'block';
+  document.getElementById('mf-acct-search').value           = '';
+  document.getElementById('mf-acct-drop').style.display     = 'none';
+  document.getElementById('mf-acct-selected').style.display = 'none';
+  const lw = document.getElementById('mf-manual-link-wrap');
+  if (lw) lw.style.display = 'block';
+}
+
+function showManualAccountInput() {
+  const el = document.getElementById('mf-acct-manual');
+  if (el) el.style.display = 'block';
+}
+
+function submitManual() {
+  const t = currentType;
+  const g = id => document.getElementById(id)?.value?.trim() || null;
+
+  const manualInput = document.getElementById('mf-acct-manual');
+  const manualName  = manualInput?.style.display !== 'none' ? manualInput?.value?.trim() : '';
+  if (!matchedAccount && manualName) {
+    matchedAccount = { name: manualName, platform: null, agency: null, manual_entry: true };
+  }
+
+  parseResult = { type: t, confidence: 1.0, raw_account_name: matchedAccount?.name || null };
+
+  if (t === 'TOP') {
+    if (!g('mf-amount')) { toast('Укажите сумму', 'err'); return; }
+    if (!matchedAccount) { toast('Выберите аккаунт', 'err'); return; }
+    parseResult.amount = Number(g('mf-amount'));
+    parseResult.comment = g('mf-comment');
+  }
+  if (t === 'OPEN') {
+    if (!g('mf-platform'))   { toast('Выберите площадку', 'err'); return; }
+    if (!g('mf-agency'))     { toast('Выберите агентство', 'err'); return; }
+    if (!g('mf-client'))     { toast('Укажите юр. лицо', 'err'); return; }
+    if (!g('mf-inn'))        { toast('Укажите ИНН', 'err'); return; }
+    parseResult.platform = g('mf-platform'); parseResult.agency = g('mf-agency');
+    parseResult.client_entity = g('mf-client'); parseResult.inn = g('mf-inn');
+    parseResult.contract_num = g('mf-contract'); parseResult.access_email = g('mf-access');
+    parseResult.amount = g('mf-amount') ? Number(g('mf-amount')) : null;
+  }
+  if (t === 'CHANGE') {
+    if (!matchedAccount)      { toast('Выберите аккаунт', 'err'); return; }
+    if (!g('mf-change-type')) { toast('Выберите тип изменения', 'err'); return; }
+    parseResult.change_type = g('mf-change-type');
+    parseResult.comment = g('mf-comment');
+  }
+  if (t === 'TECH') {
+    if (!g('mf-topic')) { toast('Выберите тему', 'err'); return; }
+    parseResult.issue_topic = g('mf-topic');
+    parseResult.comment = g('mf-comment');
+  }
+
+  inputMode = 'manual';
+  renderReview();
+  goTo(3);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// DEEPSEEK — только извлечение полей, БЕЗ справочника в промпте
+// ══════════════════════════════════════════════════════════════════════════
+
+async function runParse() {
+  const key  = document.getElementById('api-key').value.trim();
+  const text = document.getElementById('raw-input').value.trim();
+  if (!key)  { toast('Введите API ключ', 'err'); return; }
+  if (!text) { toast('Вставьте текст заявки', 'err'); return; }
+
+  setLoading(true);
+
+  // Промпт без справочника — только извлечение полей из текста
+  const systemPrompt = `Ты — парсер рекламных заявок. Тип заявки: ${currentType}.
+
+Извлеки поля из текста и верни ТОЛЬКО валидный JSON без markdown:
+{
+  "raw_account_name": "название аккаунта точно как написал клиент, или null",
+  "amount": число в рублях или null,
+  "platform": "площадка если явно указана, иначе null",
+  "agency": "агентство если явно указано, иначе null",
+  "client_entity": "юр. лицо рекламодателя или null",
+  "inn": "ИНН или null",
+  "contract_num": "номер договора или null",
+  "contract_date": "дата договора или null",
+  "contract_type": "тип договора или null",
+  "access_email": "email для доступа или null",
+  "issue_topic": "тема техвопроса или null",
+  "comment": "важный комментарий или null",
+  "confidence": число от 0.0 до 1.0
+}
+
+Правила:
+- raw_account_name — ровно то что написал клиент, без изменений
+- amount — только цифры, без пробелов и символов
+- confidence: 1.0 = все нужные поля найдены, 0.5 = есть неясности`;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'deepseek-chat', max_tokens: 400, temperature: 0.1,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }]
+      })
+    });
+
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data  = await resp.json();
+    const clean = (data.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    parseResult = { type: currentType, ...parsed };
+
+    // Матчинг делает JS локально по загруженному справочнику
+    const match = matchAccount(parsed.raw_account_name);
+    if (match.type === 'exact') {
+      matchedAccount = match.exact;
+    } else {
+      matchedAccount = null;
+    }
+
+    inputMode = 'paste';
+    renderReview(match);
+    goTo(3);
+
+  } catch(e) {
+    toast('Ошибка: ' + e.message.slice(0, 50), 'err');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function setLoading(on) {
+  document.getElementById('parse-btn').disabled = on;
+  document.getElementById('spinner').style.display     = on ? 'block' : 'none';
+  document.getElementById('parse-btn-text').textContent = on ? 'Разбираю...' : 'Разобрать заявку';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// REVIEW
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderReview(matchResult) {
+  // Если matchResult не передан (ручной ввод) — вычисляем по текущему matchedAccount
+  if (!matchResult) {
+    matchResult = matchedAccount
+      ? { type: 'exact', exact: matchedAccount, similar: [] }
+      : { type: 'not_found', exact: null, similar: [] };
+  }
+
+  const p = parseResult;
+  const confPct   = Math.round((p.confidence || 1) * 100);
+  const confColor = confPct >= 80 ? 'var(--green)' : confPct >= 60 ? 'var(--yellow)' : 'var(--red)';
+  let html = '';
+
+  // Confidence bar — только для paste mode
+  if (inputMode === 'paste') {
+    html += `<div class="conf-row">
+      <div class="conf-top">
+        <span class="conf-lbl">Уверенность разбора</span>
+        <span class="conf-pct" style="color:${confColor}">${confPct}%</span>
+      </div>
+      <div class="conf-track"><div class="conf-fill" style="width:${confPct}%;background:${confColor}"></div></div>
+    </div>`;
+  }
+
+  // Карточка полей
+  html += `<div class="review-card">
+    <div class="review-card-head"><span>Данные заявки</span>
+      <span class="type-badge badge-${currentType.toLowerCase()}">${currentType}</span>
+    </div>`;
+  if (p.amount)        html += row('Сумма',         `<div class="rf-val amt">${Number(p.amount).toLocaleString('ru-RU')} ₽</div>`);
+  if (p.platform)      html += row('Площадка',      `<div class="rf-val">${esc(p.platform)}</div>`);
+  if (p.agency)        html += row('Агентство',     `<div class="rf-val">${esc(p.agency)}</div>`);
+  if (p.client_entity) html += row('Рекламодатель', `<div class="rf-val">${esc(p.client_entity)}</div>`);
+  if (p.inn)           html += row('ИНН',           `<div class="rf-val mono">${esc(p.inn)}</div>`);
+  if (p.contract_num)  html += row('Договор №',     `<div class="rf-val mono">${esc(p.contract_num)}</div>`);
+  if (p.contract_date) html += row('Дата',          `<div class="rf-val mono">${esc(p.contract_date)}</div>`);
+  if (p.access_email)  html += row('Доступ для',    `<div class="rf-val mono">${esc(p.access_email)}</div>`);
+  if (p.change_type)   html += row('Изменение',     `<div class="rf-val">${esc(p.change_type)}</div>`);
+  if (p.issue_topic)   html += row('Тема',          `<div class="rf-val">${esc(p.issue_topic)}</div>`);
+  if (p.comment)       html += row('Комментарий',   `<div class="rf-val" style="font-size:13px;color:var(--text2)">${esc(p.comment)}</div>`);
+  html += `</div>`;
+
+  // Блок аккаунта — не для OPEN
+  if (currentType !== 'OPEN') {
+    html += `<div class="review-card"><div class="review-card-head">Аккаунт</div>`;
+    if (p.raw_account_name)
+      html += row('Из текста', `<div class="rf-val mono" style="word-break:break-all">${esc(p.raw_account_name)}</div>`);
+    html += `</div>`;
+
+    if (matchResult.type === 'exact') {
+      // Точное совпадение
+      html += `<div class="match-found">
+        <div class="match-lbl found">✓ Точное совпадение</div>
+        <div class="match-name">${esc(matchResult.exact.name)}</div>
+        <div class="match-meta">${esc(matchResult.exact.platform)} · ${esc(matchResult.exact.agency)}</div>
+      </div>`;
+      // Предупреждение о похожих
+      if (matchResult.similar.length) {
+        html += `<div class="similar-warn">
+          <div class="similar-lbl">⚠ Есть похожие — убедитесь что выбрали верный</div>
+          ${matchResult.similar.map(a => `
+            <div class="similar-item" onclick="switchAccount(${JSON.stringify(a.name)},${JSON.stringify(a.platform)},${JSON.stringify(a.agency)},false)">
+              <div class="similar-item-name">${esc(a.name)}</div>
+              <div class="similar-item-meta">${esc(a.platform)} · ${esc(a.agency)}</div>
+            </div>`).join('')}
+        </div>`;
+      }
+
+    } else if (matchResult.type === 'similar') {
+      // Несколько кандидатов — менеджер выбирает
+      html += `<div class="similar-warn">
+        <div class="similar-lbl">Найдено несколько похожих — выберите нужный</div>
+        ${matchResult.similar.map(a => `
+          <div class="similar-item" onclick="switchAccount(${JSON.stringify(a.name)},${JSON.stringify(a.platform)},${JSON.stringify(a.agency)},false)">
+            <div class="similar-item-name">${esc(a.name)}</div>
+            <div class="similar-item-meta">${esc(a.platform)} · ${esc(a.agency)}</div>
+          </div>`).join('')}
+      </div>`;
+
+    } else {
+      // Не найдено
+      html += `<div class="match-not-found">
+        <div class="match-lbl nf">✕ Аккаунт не найден</div>
+        <div class="match-meta">${p.raw_account_name ? 'Запрос: ' + esc(p.raw_account_name) : 'Не указан'}</div>
+      </div>
+      <div class="account-search-block" id="acct-block">
+        <div class="account-search-tabs">
+          <button class="ast active" onclick="switchAccountTab('list')">Выбрать из списка</button>
+          <button class="ast"        onclick="switchAccountTab('custom')">Ввести вручную</button>
+        </div>
+        <div class="atp active" id="atab-list">
+          <input class="form-input" type="text" placeholder="Поиск по аккаунту..."
+            oninput="filterManual(this.value)" style="border-radius:8px;margin-bottom:0">
+          <div class="manual-list" id="manual-list">${manualItems('')}</div>
+        </div>
+        <div class="atp" id="atab-custom">
+          <input class="form-input" id="custom-acct-input" type="text"
+            placeholder="Название аккаунта" style="border-radius:8px;margin-bottom:8px">
+          <button class="btn-accent" onclick="applyCustomAccount()">Применить</button>
+        </div>
+      </div>`;
+    }
+  }
+
+  document.getElementById('review-content').innerHTML = html;
+}
+
+function row(label, valHtml) {
+  return `<div class="rf"><div class="rf-label">${label}</div>${valHtml}</div>`;
+}
+
+function switchAccountTab(tab) {
+  document.querySelectorAll('.ast').forEach((el, i) =>
+    el.classList.toggle('active', (i === 0 && tab === 'list') || (i === 1 && tab === 'custom'))
+  );
+  document.getElementById('atab-list').classList.toggle('active',   tab === 'list');
+  document.getElementById('atab-custom').classList.toggle('active', tab === 'custom');
+}
+
+function manualItems(q) {
+  const filtered = ACCOUNTS.filter(a => !q || normalize(a.name).includes(normalize(q))).slice(0, 30);
+  if (!filtered.length) return `<div class="manual-empty">Не найдено</div>`;
+  return filtered.map(a => `
+    <div class="manual-item" onclick="switchAccount(${JSON.stringify(a.name)},${JSON.stringify(a.platform)},${JSON.stringify(a.agency)},false)">
+      <div class="manual-item-name">${esc(a.name)}</div>
+      <div class="manual-item-meta">${esc(a.platform)} · ${esc(a.agency)}</div>
+    </div>`).join('');
+}
+
+function filterManual(q) {
+  const el = document.getElementById('manual-list');
+  if (el) el.innerHTML = manualItems(q);
+}
+
+function applyCustomAccount() {
+  const name = document.getElementById('custom-acct-input')?.value?.trim();
+  if (!name) { toast('Введите название аккаунта', 'err'); return; }
+  switchAccount(name, null, null, true);
+}
+
+function switchAccount(name, platform, agency, isCustom) {
+  matchedAccount = { name, platform, agency, manual_entry: !!isCustom };
+  parseResult.raw_account_name = name;
+
+  document.querySelectorAll('.match-found,.match-not-found,.similar-warn,.account-search-block')
+    .forEach(el => el.remove());
+
+  const block = document.createElement('div');
+  block.className = 'match-found';
+  block.innerHTML = `
+    <div class="match-lbl found">${isCustom ? '✓ Введён вручную' : '✓ Выбрано'}</div>
+    <div class="match-name">${esc(name)}</div>
+    ${platform ? `<div class="match-meta">${esc(platform)} · ${esc(agency)}</div>` : ''}`;
+  document.getElementById('review-content').appendChild(block);
+  toast('Аккаунт выбран', 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SUBMIT
+// ══════════════════════════════════════════════════════════════════════════
+
+function submitRequest() {
+  if (!matchedAccount && (currentType === 'TOP' || currentType === 'CHANGE')) {
+    toast('Выберите или введите аккаунт', 'err'); return;
+  }
+
+  const now     = new Date();
+  const dateStr = now.toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'2-digit'})
+    + ' · ' + now.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
+  const fakeId  = 'AO-0' + (Math.floor(Math.random() * 90) + 10);
+
+  const payload = {
+    id: fakeId, type: currentType,
+    matched_account: matchedAccount,
+    match_method: matchedAccount
+      ? (matchedAccount.manual_entry ? 'manual' : 'exact')
+      : 'not_found',
+    ...parseResult,
+    created_at: now.toISOString(),
+  };
+
+  // В продакшне: tg.sendData(JSON.stringify(payload))
+  console.log('[AdOps] payload:', payload);
+
+  renderConfirm(payload, fakeId, dateStr);
+  goTo(4);
+}
+
+function renderConfirm(p, id, dateStr) {
+  const acc = p.matched_account;
+  let html = `
+    <div class="confirm-head">
+      <span class="confirm-id">${id} · ${dateStr}</span>
+      <span class="confirm-status">В ОЧЕРЕДИ</span>
+    </div>`;
+
+  html += cf('Тип', `<span class="type-badge badge-${currentType.toLowerCase()}">${TYPE_LABELS[currentType]}</span>`);
+  if (acc) {
+    html += cf('Аккаунт', `<div class="cf-val">${esc(acc.name)}</div>`);
+    if (acc.agency)   html += cf('Агентство', `<div class="cf-val">${esc(acc.agency)}</div>`);
+    if (acc.platform) html += cf('Площадка',  `<div class="cf-val">${esc(acc.platform)}</div>`);
+  }
+  if (p.platform && !acc?.platform) html += cf('Площадка',  `<div class="cf-val">${esc(p.platform)}</div>`);
+  if (p.agency   && !acc?.agency)   html += cf('Агентство', `<div class="cf-val">${esc(p.agency)}</div>`);
+  if (p.amount)        html += cf('Сумма',        `<div class="cf-val amt">${Number(p.amount).toLocaleString('ru-RU')} ₽</div>`);
+  if (p.client_entity) html += cf('Рекламодатель',`<div class="cf-val">${esc(p.client_entity)}</div>`);
+  if (p.inn)           html += cf('ИНН',          `<div class="cf-val" style="font-family:var(--mono);font-size:13px">${esc(p.inn)}</div>`);
+  if (p.contract_num)  html += cf('Договор',      `<div class="cf-val" style="font-family:var(--mono);font-size:13px">${esc(p.contract_num)}</div>`);
+  if (p.access_email)  html += cf('Доступы для',  `<div class="cf-val" style="font-family:var(--mono);font-size:13px">${esc(p.access_email)}</div>`);
+  if (p.issue_topic)   html += cf('Тема',         `<div class="cf-val">${esc(p.issue_topic)}</div>`);
+  if (p.comment)       html += cf('Комментарий',  `<div class="cf-val" style="font-size:13px;color:var(--text2)">${esc(p.comment)}</div>`);
+
+  document.getElementById('confirm-card').innerHTML = html;
+}
+
+function cf(label, valHtml) {
+  return `<div class="cf"><div class="cf-lbl">${label}</div>${valHtml}</div>`;
+}
+
+function closeApp() {
+  if (tg) tg.close();
+  else { parseResult = null; matchedAccount = null; goTo(1); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════════
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+loadAccounts();
+</script>
+</body>
+</html>
