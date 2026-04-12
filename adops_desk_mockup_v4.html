@@ -273,39 +273,39 @@
   .file-drop { border: 1px dashed var(--border2); border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.15s; color: var(--text3); font-size: 12px; }
   .file-drop:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
 
-  /* Searchable select */
-  .ss-wrap { position: relative; }
-  .ss-input {
-    width: 100%; padding: 8px 32px 8px 12px; border-radius: 6px; border: 1px solid var(--border2);
+  /* Autocomplete */
+  .ac-wrap { position: relative; }
+  .ac-input {
+    width: 100%; padding: 8px 28px 8px 12px; border-radius: 6px; border: 1px solid var(--border2);
     background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 13px;
-    outline: none; transition: border-color 0.15s; cursor: pointer;
+    outline: none; transition: border-color 0.15s;
   }
-  .ss-input:focus { border-color: var(--accent); }
-  .ss-arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 11px; pointer-events: none; }
-  .ss-drop {
-    position: absolute; top: 100%; left: 0; right: 0; z-index: 300;
-    background: var(--surface2); border: 1px solid var(--accent); border-top: none;
-    border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto;
+  .ac-input:focus { border-color: var(--accent); }
+  .ac-input::placeholder { color: var(--text3); }
+  .ac-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--text3); font-size: 14px; cursor: pointer; line-height: 1;
+    display: none; padding: 2px 4px; border-radius: 3px; transition: color 0.12s;
+  }
+  .ac-clear:hover { color: var(--text); }
+  .ac-drop {
+    position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 400;
+    background: var(--surface2); border: 1px solid var(--accent);
+    border-radius: 6px; max-height: 220px; overflow-y: auto;
     scrollbar-width: none; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
-  .ss-drop::-webkit-scrollbar { display: none; }
-  .ss-search {
-    padding: 6px 10px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--surface2);
-  }
-  .ss-search input {
-    width: 100%; background: var(--surface3); border: 1px solid var(--border2);
-    border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 12px;
-    font-family: var(--sans); outline: none;
-  }
-  .ss-opt {
+  .ac-drop::-webkit-scrollbar { display: none; }
+  .ac-opt {
     padding: 8px 12px; font-size: 13px; color: var(--text); cursor: pointer;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
   }
-  .ss-opt:hover { background: var(--surface3); }
-  .ss-opt:last-child { border-bottom: none; }
-  .ss-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); }
-  .cascade-note { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+  .ac-opt:hover, .ac-opt.ac-focused { background: var(--surface3); }
+  .ac-opt:last-child { border-bottom: none; }
+  .ac-opt-sub { font-size: 11px; color: var(--text3); margin-left: auto; font-family: var(--mono); flex-shrink: 0; }
+  .ac-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); font-family: var(--mono); }
+  .ac-note { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+  .ac-match { color: var(--accent); }
 
   .btn-primary   { padding: 9px 20px; border-radius: 6px; border: none; background: var(--accent); color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
   .btn-primary:hover { background: #2563eb; }
@@ -776,95 +776,199 @@ const CABINETS_FULL = {
   ],
 };
 
-function cascadeBlock(req) {
-  const reqStar = req ? '<span class="req">*</span>' : '<span class="opt">необязательно</span>';
+// ── AUTOCOMPLETE ENGINE ───────────────────────────────────────────────────────
+// Генерирует HTML для autocomplete-поля. Инициализацию вызывай через acInit(id) после вставки в DOM.
+// items: [{label, sub?, value?}] или строки
+// opts:  { placeholder, noteId, onPick(item){} }
+function acHtml(id, placeholder=''){
   return `
-    <div class="form-group">
-      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      <select class="form-select" id="f-agency" onchange="onCascadeChange()">
-        <option value="">Выберите агентство</option>
-        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Площадка <span class="req">*</span></label>
-      <select class="form-select" id="f-platform" onchange="onCascadeChange()">
-        <option value="">Выберите площадку</option>
-        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Кабинет ${reqStar}</label>
-      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
-      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
-      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+    <div class="ac-wrap" id="ac-wrap-${id}">
+      <input class="ac-input" id="ac-${id}" type="text" placeholder="${placeholder}"
+        autocomplete="off" spellcheck="false">
+      <span class="ac-clear" id="ac-clr-${id}" title="Очистить" onclick="acClear('${id}')">×</span>
+      <div class="ac-drop" id="ac-drop-${id}"></div>
     </div>`;
 }
 
-function onCascadeChange(){
-  const agency   = document.getElementById('f-agency')?.value   || '';
-  const platform = document.getElementById('f-platform')?.value || '';
-  const input    = document.getElementById('f-cabinet');
-  const list     = document.getElementById('f-cabinet-list');
-  const note     = document.getElementById('cascade-note');
-  if(!input||!list) return;
+// Глобальное хранилище: id → { items, onPick, getValue }
+const _ac = {};
 
-  let cabs = [];
-  if(agency && CABINETS_FULL[agency]){
-    cabs = CABINETS_FULL[agency];
-    if(platform) cabs = cabs.filter(c=>c.platform===platform);
+// items: массив строк или объектов {label, sub}
+// onPick: function(item) — item это {label, sub} или строка
+function acInit(id, items, onPick){
+  const input  = document.getElementById('ac-'+id);
+  const drop   = document.getElementById('ac-drop-'+id);
+  const clr    = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+
+  _ac[id] = { items, onPick, focusIdx: -1 };
+
+  function getItems(){ return _ac[id].items; }
+  function getLabel(item){ return typeof item==='string'?item:item.label; }
+  function getSub(item){ return typeof item==='string'?null:item.sub||null; }
+
+  function highlight(str, q){
+    if(!q) return str;
+    const idx = str.toLowerCase().indexOf(q.toLowerCase());
+    if(idx<0) return str;
+    return str.slice(0,idx)+'<span class="ac-match">'+str.slice(idx,idx+q.length)+'</span>'+str.slice(idx+q.length);
   }
 
-  if(note) note.textContent = cabs.length
-    ? `Найдено кабинетов: ${cabs.length}`
-    : agency ? 'Кабинеты не найдены — введите вручную' : 'Фильтруется по агентству и площадке';
-
-  renderCabinetList(cabs, input.value);
-}
-
-function renderCabinetList(cabs, q){
-  const list = document.getElementById('f-cabinet-list');
-  if(!list) return;
-  const filtered = q ? cabs.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())) : cabs;
-  if(!filtered.length){ list.style.display='none'; return; }
-  list.innerHTML = filtered.map(c=>`
-    <div onclick="selectCabinet('${c.name.replace(/'/g,"\\'")}','${c.platform}')"
-      style="padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)"
-      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background=''">${c.name}
-      <span style="font-size:11px;color:var(--text3);margin-left:6px">${c.platform}</span>
-    </div>`).join('');
-  list.style.display = 'block';
-}
-
-function selectCabinet(name, platform){
-  const input = document.getElementById('f-cabinet');
-  const list  = document.getElementById('f-cabinet-list');
-  if(input) input.value = name;
-  if(list)  list.style.display = 'none';
-  // Автозаполнение площадки если выбран конкретный кабинет
-  if(platform){
-    const platSel = document.getElementById('f-platform');
-    if(platSel){
-      // Ищем опцию с нужным значением
-      for(let opt of platSel.options){
-        if(opt.value === platform || opt.text === platform){
-          platSel.value = opt.value;
-          break;
-        }
-      }
-      // Обновляем валюту если нужно
-      const curEl = document.getElementById('cur-top') || document.getElementById('cur-open');
-      if(curEl) updateCurrency(platform, curEl.id);
+  function render(q=''){
+    const items = getItems();
+    const filtered = q
+      ? items.filter(it=>getLabel(it).toLowerCase().includes(q.toLowerCase()))
+      : items;
+    _ac[id].focusIdx = -1;
+    if(!filtered.length){
+      drop.innerHTML = `<div class="ac-empty">Не найдено</div>`;
+      drop.style.display = 'block';
+      return;
     }
+    drop.innerHTML = filtered.map((it,i)=>{
+      const lbl = getLabel(it);
+      const sub = getSub(it);
+      return `<div class="ac-opt" data-idx="${i}" data-label="${lbl.replace(/"/g,'&quot;')}"
+        onmousedown="acPick('${id}',${JSON.stringify(lbl)},${JSON.stringify(sub)})"
+        >${highlight(lbl,q)}${sub?`<span class="ac-opt-sub">${sub}</span>`:''}</div>`;
+    }).join('');
+    drop.style.display = 'block';
   }
+
+  function close(){ drop.style.display='none'; _ac[id].focusIdx=-1; }
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    clr.style.display = q ? 'block' : 'none';
+    render(q);
+  });
+
+  input.addEventListener('focus', ()=>{
+    render(input.value.trim());
+  });
+
+  input.addEventListener('blur', ()=>{
+    // Даём mousedown сработать раньше
+    setTimeout(close, 150);
+  });
+
+  input.addEventListener('keydown', e=>{
+    const opts = drop.querySelectorAll('.ac-opt');
+    if(!opts.length) return;
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      _ac[id].focusIdx = Math.min(_ac[id].focusIdx+1, opts.length-1);
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      _ac[id].focusIdx = Math.max(_ac[id].focusIdx-1, 0);
+    } else if(e.key==='Enter'){
+      e.preventDefault();
+      const focused = opts[_ac[id].focusIdx];
+      if(focused) focused.dispatchEvent(new MouseEvent('mousedown'));
+      return;
+    } else if(e.key==='Escape'){
+      close(); return;
+    } else { return; }
+    opts.forEach((o,i)=>o.classList.toggle('ac-focused', i===_ac[id].focusIdx));
+    opts[_ac[id].focusIdx]?.scrollIntoView({block:'nearest'});
+  });
 }
 
-function onCabinetInput(input){
-  const agency   = document.getElementById('f-agency')?.value   || '';
-  const platform = document.getElementById('f-platform')?.value || '';
-  let cabs = agency && CABINETS_FULL[agency] ? CABINETS_FULL[agency] : [];
-  if(platform) cabs = cabs.filter(c=>c.platform===platform);
-  renderCabinetList(cabs, input.value);
+function acPick(id, label, sub){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  const drop  = document.getElementById('ac-drop-'+id);
+  if(!input) return;
+  input.value = label;
+  clr.style.display = 'block';
+  drop.style.display = 'none';
+  const cb = _ac[id]?.onPick;
+  if(cb) cb({label, sub});
+}
+
+function acClear(id){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+  input.value = '';
+  clr.style.display = 'none';
+  const cb = _ac[id]?.onPick;
+  if(cb) cb(null);
+}
+
+function acVal(id){
+  return document.getElementById('ac-'+id)?.value || '';
+}
+
+function acSet(id, val){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+  input.value = val;
+  if(clr) clr.style.display = val ? 'block' : 'none';
+}
+
+function acSetItems(id, items){
+  if(_ac[id]) _ac[id].items = items;
+}
+
+// Инициализирует тройку Агентство → Площадка → Кабинет для формы.
+// prefix: уникальный префикс ('top'/'open'/'chg'/'tech')
+// opts:   { cabinetRequired, onAgencyPick, onPlatformPick, curLabelId }
+function initTriple(prefix, opts={}){
+  const agencyItems  = AGENCIES_DATA.map(a=>({label:a.name, sub:a.inn||null}));
+  const platformItems = PLATFORMS_DATA.map(p=>typeof p==='string'?{label:p}:{label:p});
+
+  // Получить текущий список кабинетов с учётом выбранного агентства и площадки
+  function getCabs(){
+    const ag = acVal(prefix+'-ag');
+    const pl = acVal(prefix+'-pl');
+    let cabs = ag && CABINETS_FULL[ag] ? CABINETS_FULL[ag] : Object.values(CABINETS_FULL).flat();
+    if(pl) cabs = cabs.filter(c=>c.platform===pl);
+    return cabs.map(c=>({label:c.name, sub:c.platform}));
+  }
+
+  function updateNote(){
+    const note = document.getElementById(prefix+'-cab-note');
+    if(!note) return;
+    const ag = acVal(prefix+'-ag');
+    const pl = acVal(prefix+'-pl');
+    if(!ag && !pl){ note.textContent='Введите название кабинета или выберите агентство для фильтрации'; return; }
+    const cabs = getCabs();
+    note.textContent = cabs.length ? `Найдено: ${cabs.length}` : 'Кабинеты не найдены — введите вручную';
+  }
+
+  acInit(prefix+'-ag', agencyItems, item=>{
+    acSetItems(prefix+'-cab', getCabs());
+    updateNote();
+    if(opts.onAgencyPick) opts.onAgencyPick(item);
+    // В форме OPEN — заполнить поле "Агентство РА по договору"
+    const raField = document.getElementById('f-ra-name');
+    if(raField && item && !raField.value) raField.value = item.label;
+  });
+
+  acInit(prefix+'-pl', platformItems, item=>{
+    acSetItems(prefix+'-cab', getCabs());
+    updateNote();
+    if(item && opts.curLabelId) updateCurrency(item.label, opts.curLabelId);
+    if(opts.onPlatformPick) opts.onPlatformPick(item);
+  });
+
+  acInit(prefix+'-cab', getCabs(), item=>{
+    if(!item) return;
+    // Автозаполнение площадки если она однозначно определяется
+    if(item.sub){
+      const curPlat = acVal(prefix+'-pl');
+      if(!curPlat || curPlat !== item.sub){
+        acSet(prefix+'-pl', item.sub);
+        // Обновить курсовую метку
+        if(opts.curLabelId) updateCurrency(item.sub, opts.curLabelId);
+      }
+    }
+    updateNote();
+  });
+
+  updateNote();
 }
 
 const FILE_DROP = `
@@ -876,55 +980,11 @@ const FILE_DROP = `
     </div>
   </div>`;
 
-// ── SEARCHABLE SELECT ────────────────────────────────────────────────────────
-function ssHtml(id, placeholder, items, onchange=''){
-  return `
-    <div class="ss-wrap" id="ss-wrap-${id}">
-      <input class="ss-input" id="ss-${id}" placeholder="${placeholder}" readonly
-        onclick="ssToggle('${id}')" value="">
-      <span class="ss-arrow">▾</span>
-      <div class="ss-drop" id="ss-drop-${id}">
-        <div class="ss-search"><input type="text" placeholder="Поиск..." oninput="ssFilter('${id}',this.value)"></div>
-        <div id="ss-opts-${id}">
-          ${items.map(item=>{
-            const val = typeof item==='object'?item.name:item;
-            return `<div class="ss-opt" onclick="ssPick('${id}','${val.replace(/'/g,"\\'")}');${onchange}">${val}</div>`;
-          }).join('')}
-        </div>
-        <div class="ss-empty" id="ss-empty-${id}" style="display:none">Не найдено</div>
-      </div>
-    </div>`;
-}
-
-function ssToggle(id){
-  const drop = document.getElementById('ss-drop-'+id);
-  const isOpen = drop.style.display==='block';
-  // закрыть все
-  document.querySelectorAll('.ss-drop').forEach(d=>d.style.display='none');
-  if(!isOpen){ drop.style.display='block'; drop.querySelector('input')?.focus(); }
-}
-
-function ssPick(id, val){
-  document.getElementById('ss-'+id).value = val;
-  document.getElementById('ss-drop-'+id).style.display='none';
-}
-
-function ssFilter(id, q){
-  const opts = document.querySelectorAll(`#ss-opts-${id} .ss-opt`);
-  let found = 0;
-  opts.forEach(o=>{
-    const match = !q || o.textContent.toLowerCase().includes(q.toLowerCase());
-    o.style.display = match?'':'none';
-    if(match) found++;
-  });
-  document.getElementById('ss-empty-'+id).style.display = found?'none':'';
-}
-
-function ssVal(id){ return document.getElementById('ss-'+id)?.value||''; }
-
-// Закрывать дропдауны при клике вне
+// Закрывать ac-drop при клике вне
 document.addEventListener('click', e=>{
-  if(!e.target.closest('.ss-wrap')) document.querySelectorAll('.ss-drop').forEach(d=>d.style.display='none');
+  if(!e.target.closest('.ac-wrap')){
+    document.querySelectorAll('.ac-drop').forEach(d=>d.style.display='none');
+  }
 });
 
 // ── CURRENCY ─────────────────────────────────────────────────────────────────
@@ -940,28 +1000,25 @@ function onPlatformChange(selectEl, labelId){
   updateCurrency(selectEl.value, labelId);
 }
 
-function agencySSHtml(id, onch=''){
-  return ssHtml(id, 'Выберите агентство', AGENCIES_DATA.map(a=>({name:a.name})), onch);
-}
-function platformSSHtml(id, onch=''){
-  return ssHtml(id, 'Выберите площадку', PLATFORMS_DATA, onch);
-}
+
 
 function buildForm(type){
 
-  if(type==='OPEN') return `
+  if(type==='OPEN'){
+    const html = `
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      ${platformSSHtml('open-plat',"updateCurrency(ssVal('open-plat'),'cur-open')")}
+      ${acHtml('open-pl','Введите или выберите площадку')}
     </div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      ${agencySSHtml('open-agency')}
+      ${acHtml('open-ag','Введите или выберите агентство')}
     </div>
     <div class="form-group">
       <label class="form-label">Аккаунт / Кабинет <span class="opt">необязательно</span></label>
-      <input class="form-input" id="f-cabinet" type="text" placeholder="Название кабинета">
+      ${acHtml('open-cab','Название кабинета')}
+      <div class="ac-note" id="open-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
     </div>
     <div class="form-group">
       <label class="form-label">Сумма пополнения, <span id="cur-open">руб. до НДС</span> <span class="opt">необязательно — если нужно сразу → OPEN+TOP</span></label>
@@ -985,7 +1042,7 @@ function buildForm(type){
     <div class="form-divider">Агентство по договору</div>
     <div class="form-group">
       <label class="form-label">Агентство РА по договору <span class="req">*</span></label>
-      <input class="form-input" id="f-ra-name" type="text" placeholder="Подтягивается из поля Агентство выше" onfocus="prefillRA()">
+      <input class="form-input" id="f-ra-name" type="text" placeholder="Подтягивается из поля Агентство выше">
     </div>
     <div class="form-group">
       <label class="form-label">ИНН РА <span class="req">*</span></label>
@@ -1020,22 +1077,25 @@ function buildForm(type){
       <input class="form-input" id="f-access" type="text" placeholder="email@example.com или имя">
     </div>
     ${FILE_DROP}`;
+    setTimeout(()=>initTriple('open', {curLabelId:'cur-open'}), 0);
+    return html;
+  }
 
-  if(type==='TOP') return `
+  if(type==='TOP'){
+    const html = `
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      ${agencySSHtml('top-agency',"onCascadeChangeNew('top-agency','top-plat')")}
+      ${acHtml('top-ag','Введите или выберите агентство')}
     </div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      ${platformSSHtml('top-plat',"onCascadeChangeNew('top-agency','top-plat');updateCurrency(ssVal('top-plat'),'cur-top')")}
+      ${acHtml('top-pl','Введите или выберите площадку')}
     </div>
     <div class="form-group">
       <label class="form-label">Кабинет <span class="req">*</span></label>
-      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
-      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
-      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+      ${acHtml('top-cab','Введите название кабинета')}
+      <div class="ac-note" id="top-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
     </div>
     <div class="form-divider">Сумма</div>
     <div class="form-group">
@@ -1047,22 +1107,25 @@ function buildForm(type){
       <textarea class="form-textarea" placeholder="Дополнительная информация..."></textarea>
     </div>
     ${FILE_DROP}`;
+    setTimeout(()=>initTriple('top', {curLabelId:'cur-top'}), 0);
+    return html;
+  }
 
-  if(type==='CHANGE') return `
+  if(type==='CHANGE'){
+    const html = `
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      ${agencySSHtml('chg-agency',"onCascadeChangeNew('chg-agency','chg-plat')")}
+      ${acHtml('chg-ag','Введите или выберите агентство')}
     </div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      ${platformSSHtml('chg-plat',"onCascadeChangeNew('chg-agency','chg-plat')")}
+      ${acHtml('chg-pl','Введите или выберите площадку')}
     </div>
     <div class="form-group">
       <label class="form-label">Кабинет <span class="req">*</span></label>
-      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
-      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
-      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+      ${acHtml('chg-cab','Введите название кабинета')}
+      <div class="ac-note" id="chg-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
     </div>
     <div class="form-divider">Изменение</div>
     <div class="form-group">
@@ -1083,22 +1146,25 @@ function buildForm(type){
       <input class="form-input" type="text" placeholder="email@example.com или имя">
     </div>
     ${FILE_DROP}`;
+    setTimeout(()=>initTriple('chg'), 0);
+    return html;
+  }
 
-  if(type==='TECH') return `
+  if(type==='TECH'){
+    const html = `
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      ${agencySSHtml('tech-agency',"onCascadeChangeNew('tech-agency','tech-plat')")}
+      ${acHtml('tech-ag','Введите или выберите агентство')}
     </div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      ${platformSSHtml('tech-plat',"onCascadeChangeNew('tech-agency','tech-plat')")}
+      ${acHtml('tech-pl','Введите или выберите площадку')}
     </div>
     <div class="form-group">
       <label class="form-label">Кабинет <span class="opt">необязательно</span></label>
-      <input class="form-input" type="text" id="f-cabinet" placeholder="Если вопрос по конкретному кабинету" oninput="onCabinetInput(this)" autocomplete="off">
-      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
-      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+      ${acHtml('tech-cab','Если вопрос по конкретному кабинету')}
+      <div class="ac-note" id="tech-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
     </div>
     <div class="form-divider">Проблема</div>
     <div class="form-group">
@@ -1114,53 +1180,28 @@ function buildForm(type){
       <textarea class="form-textarea" style="min-height:110px" placeholder="Что произошло, когда, как воспроизвести..."></textarea>
     </div>
     ${FILE_DROP}`;
+    setTimeout(()=>initTriple('tech'), 0);
+    return html;
+  }
 
   return '';
 }
 
-function prefillRA(){
-  const agency = ssVal('open-agency');
-  const raField = document.getElementById('f-ra-name');
-  if(raField && agency && !raField.value) raField.value = agency;
-}
 
-function onCascadeChangeNew(agencyId, platformId){
-  const agency   = ssVal(agencyId);
-  const platform = ssVal(platformId);
-  const input    = document.getElementById('f-cabinet');
-  const note     = document.getElementById('cascade-note');
-  if(!input) return;
-  let cabs = agency && CABINETS_FULL[agency] ? CABINETS_FULL[agency] : [];
-  if(platform) cabs = cabs.filter(c=>c.platform===platform);
-  if(note) note.textContent = cabs.length
-    ? `Найдено кабинетов: ${cabs.length}`
-    : agency ? 'Кабинеты не найдены — введите вручную' : 'Фильтруется по агентству и площадке';
-  renderCabinetList(cabs, input.value);
-}
 
-function onCabinetInput(input){
-  const agencyId = ['top-agency','chg-agency','tech-agency'].find(id=>ssVal(id));
-  const platId   = ['top-plat','chg-plat','tech-plat'].find(id=>ssVal(id));
-  const agency   = agencyId ? ssVal(agencyId) : '';
-  const platform = platId   ? ssVal(platId)   : '';
-  let cabs = agency && CABINETS_FULL[agency] ? CABINETS_FULL[agency] : [];
-  if(platform) cabs = cabs.filter(c=>c.platform===platform);
-  renderCabinetList(cabs, input.value);
-}
-
-// submitNew below
 function submitNew(){
   const today = '10.04.26';
   const id = 'AO-0'+String(nextId++).padStart(2,'0');
   const amtInput = document.querySelector('#new-body input[type=number]');
   const amt = amtInput?parseInt(amtInput.value)||null:null;
   const type = newType==='OPEN'&&amt?'OPEN+TOP':newType;
-  const agEl = document.getElementById('f-agency');
-  const agency = agEl?agEl.value||'Клевер Медиа':'Клевер Медиа';
-  const cabEl = document.getElementById('f-cabinet');
-  const account = cabEl&&cabEl.value?cabEl.value:'Новый кабинет · '+id;
-  const platEl = document.getElementById('f-platform');
-  const platform = platEl&&platEl.value?platEl.value:PLATFORMS[0];
+
+  // Определяем prefix по текущему типу
+  const prefixMap = {OPEN:'open',TOP:'top',CHANGE:'chg',TECH:'tech'};
+  const p = prefixMap[newType] || 'open';
+  const agency   = acVal(p+'-ag')  || 'Клевер Медиа';
+  const platform = acVal(p+'-pl')  || PLATFORMS[0];
+  const account  = acVal(p+'-cab') || 'Новый кабинет · '+id;
 
   rows.unshift({
     id, date:today, iso:'2026-04-10',
@@ -1174,7 +1215,7 @@ function submitNew(){
 
 // ── GOOGLE SHEETS INTEGRATION ─────────────────────────────────────────────────
 // После публикации Apps Script вставь сюда URL развёртывания
-const SHEETS_URL = 'ВСТАВЬ_URL_APPS_SCRIPT_СЮДА';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzSf9QK3rjLPZp12EfNTbk0EjOng1seimaVsvwrXC79KcIH7K9LQtUt_hqv6f9JMiJE/exec';
 
 // Динамические справочники (заполняются из Sheets, до загрузки — дефолты)
 let AGENCIES_DATA  = [
