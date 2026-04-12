@@ -717,146 +717,264 @@ function switchType(type){
   document.getElementById('new-body').innerHTML = buildForm(type);
 }
 
-function agencyOptions(sel){
-  return AGENCIES.map(a=>`<option${sel===a?' selected':''}>${a}</option>`).join('');
+// Полный справочник кабинетов с площадками
+const CABINETS_FULL = {
+  'Клевер Медиа': [
+    {name:'ВН_Й ЖУРНАЛ__VK__ВИНОУ', platform:'VK Реклама'},
+    {name:'Цифра_Яндекс_Ц48', platform:'Яндекс Директ'},
+    {name:'Фуд_VK_Ф03', platform:'VK Реклама'},
+    {name:'Ритейл_МТС_Р11', platform:'МТС Маркетолог'},
+  ],
+  'Примус Диджитал': [
+    {name:'МедиаГрупп_Яндекс_МГ01', platform:'Яндекс Директ'},
+    {name:'ТехноПарк_myTarget_ТП', platform:'myTarget'},
+    {name:'Промо_VK_Клевер', platform:'VK Реклама'},
+  ],
+  'Артель РА': [
+    {name:'Скартел_ВК_Профи', platform:'VK Реклама'},
+    {name:'Альфа_Медиа_VK_АМ', platform:'VK Реклама'},
+    {name:'СтройГрупп_Яндекс_СГ', platform:'Яндекс Директ'},
+    {name:'РусТрейд_МТС_RT22', platform:'МТС Маркетолог'},
+  ],
+  'Новый Формат': [
+    {name:'РусТрейд_МТС_RT22', platform:'МТС Маркетолог'},
+    {name:'СтройГрупп_Яндекс_СГ', platform:'Яндекс Директ'},
+    {name:'Авто_Яндекс_А99', platform:'myTarget'},
+  ],
+};
+
+function cascadeBlock(req) {
+  const reqStar = req ? '<span class="req">*</span>' : '<span class="opt">необязательно</span>';
+  return `
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      <select class="form-select" id="f-agency" onchange="onCascadeChange()">
+        <option value="">Выберите агентство</option>
+        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      <select class="form-select" id="f-platform" onchange="onCascadeChange()">
+        <option value="">Выберите площадку</option>
+        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кабинет ${reqStar}</label>
+      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
+      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
+      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+    </div>`;
 }
-function cabinetOptions(agency){
-  const cabs = agency&&CABINETS[agency]?CABINETS[agency]:[];
-  return cabs.length
-    ? cabs.map(c=>`<option>${c}</option>`).join('')
-    : '<option value="" disabled>Сначала выберите агентство</option>';
+
+function onCascadeChange(){
+  const agency   = document.getElementById('f-agency')?.value   || '';
+  const platform = document.getElementById('f-platform')?.value || '';
+  const input    = document.getElementById('f-cabinet');
+  const list     = document.getElementById('f-cabinet-list');
+  const note     = document.getElementById('cascade-note');
+  if(!input||!list) return;
+
+  let cabs = [];
+  if(agency && CABINETS_FULL[agency]){
+    cabs = CABINETS_FULL[agency];
+    if(platform) cabs = cabs.filter(c=>c.platform===platform);
+  }
+
+  if(note) note.textContent = cabs.length
+    ? `Найдено кабинетов: ${cabs.length}`
+    : agency ? 'Кабинеты не найдены — введите вручную' : 'Фильтруется по агентству и площадке';
+
+  renderCabinetList(cabs, input.value);
+}
+
+function renderCabinetList(cabs, q){
+  const list = document.getElementById('f-cabinet-list');
+  if(!list) return;
+  const filtered = q ? cabs.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())) : cabs;
+  if(!filtered.length){ list.style.display='none'; return; }
+  list.innerHTML = filtered.map(c=>`
+    <div onclick="selectCabinet('${c.name}')" style="padding:8px 12px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background=''">${c.name}
+      <span style="font-size:11px;color:var(--text3);margin-left:6px">${c.platform}</span>
+    </div>`).join('');
+  list.style.display = 'block';
+}
+
+function selectCabinet(name){
+  const input = document.getElementById('f-cabinet');
+  const list  = document.getElementById('f-cabinet-list');
+  if(input) input.value = name;
+  if(list)  list.style.display = 'none';
+}
+
+function onCabinetInput(input){
+  const agency   = document.getElementById('f-agency')?.value   || '';
+  const platform = document.getElementById('f-platform')?.value || '';
+  let cabs = agency && CABINETS_FULL[agency] ? CABINETS_FULL[agency] : [];
+  if(platform) cabs = cabs.filter(c=>c.platform===platform);
+  renderCabinetList(cabs, input.value);
+}
+
+const FILE_DROP = `
+  <div class="form-group">
+    <label class="form-label">Прикрепить файл <span class="opt">необязательно</span></label>
+    <div class="file-drop" onclick="showToast('Загрузка файлов — в финальной версии')">
+      ↑ Перетащите файл или нажмите для выбора<br>
+      <span style="font-size:11px;margin-top:4px;display:block">PDF, Word, изображения · до 10 МБ</span>
+    </div>
+  </div>`;
+
+function currencyLabel(platformSelectId){
+  return `<span id="currency-label-${platformSelectId}">руб. до НДС</span>`;
+}
+
+function onPlatformChange(selectEl, labelId){
+  const v = selectEl.value;
+  const el = document.getElementById(labelId);
+  if(!el) return;
+  if(v==='Telegram Ads') el.textContent = 'EUR до НДС';
+  else if(v==='TikTok') el.textContent = 'USD до НДС';
+  else el.textContent = 'руб. до НДС';
 }
 
 function buildForm(type){
-  if(type==='TOP') return `
-    <div class="form-divider">Агентство и кабинет</div>
-    <div class="form-group">
-      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      <select class="form-select" id="f-agency" onchange="onAgencyChange()">
-        <option value="">Выберите агентство</option>
-        ${agencyOptions('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Кабинет <span class="req">*</span></label>
-      <select class="form-select" id="f-cabinet">
-        <option value="" disabled selected>Сначала выберите агентство</option>
-      </select>
-      <div class="cascade-note">Список фильтруется по агентству</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Площадка <span class="req">*</span></label>
-      <select class="form-select">
-        <option value="">Выберите площадку</option>
-        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-divider">Сумма</div>
-    <div class="form-group">
-      <label class="form-label">Сумма пополнения до НДС, ₽ <span class="req">*</span></label>
-      <input class="form-input" type="number" placeholder="150000">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Комментарий <span class="opt">необязательно</span></label>
-      <textarea class="form-textarea" placeholder="Дополнительная информация..."></textarea>
-    </div>`;
 
   if(type==='OPEN') return `
-    <div class="form-divider">Площадка и кабинет</div>
+    <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      <select class="form-select">
+      <select class="form-select" id="f-platform-open" onchange="onPlatformChange(this,'cur-open')">
         <option value="">Выберите площадку</option>
         ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Название кабинета <span class="req">*</span></label>
-      <input class="form-input" type="text" placeholder="Как будет называться в системе">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      <select class="form-select" id="f-agency">
+        <option value="">Выберите агентство</option>
+        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
+      </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Сумма пополнения до НДС, ₽ <span class="opt">если нужно сразу пополнить → тип OPEN+TOP</span></label>
-      <input class="form-input" type="number" placeholder="оставьте пустым если не нужно">
+      <label class="form-label">Аккаунт / Кабинет <span class="opt">необязательно</span></label>
+      <input class="form-input" id="f-cabinet" type="text" placeholder="Название кабинета">
     </div>
-    <div class="form-divider">Рекламодатель</div>
+    <div class="form-group">
+      <label class="form-label">Сумма пополнения, <span id="cur-open">руб. до НДС</span> <span class="opt">необязательно — если нужно сразу → OPEN+TOP</span></label>
+      <input class="form-input" id="f-amount" type="number" placeholder="оставьте пустым если не нужно">
+    </div>
+    <div class="form-divider">Рекламодатель (ОРД)</div>
+    <div class="form-group">
+      <label class="form-label">Рекламодатель (КРД) <span class="req">*</span></label>
+      <input class="form-input" id="f-client" type="text" placeholder='ООО "Название"'>
+    </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Юр. лицо рекламодателя <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder='ООО "Название"'>
-      </div>
       <div class="form-group">
         <label class="form-label">ИНН рекламодателя <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder="7700000000">
+        <input class="form-input" id="f-inn-client" type="text" placeholder="7700000000">
       </div>
+      <div class="form-group">
+        <label class="form-label">ККТУ <span class="opt">необязательно</span></label>
+        <input class="form-input" id="f-kktu" type="text" placeholder="Код категории">
+      </div>
+    </div>
+    <div class="form-divider">Агентство по договору</div>
+    <div class="form-group">
+      <label class="form-label">Агентство РА по договору <span class="req">*</span></label>
+      <input class="form-input" id="f-ra-name" type="text" placeholder="Подтягивается из поля Агентство выше" onfocus="prefillRA()">
     </div>
     <div class="form-group">
-      <label class="form-label">ККТУ рекламодателя <span class="opt">необязательно</span></label>
-      <input class="form-input" type="text" placeholder="Код категории">
-    </div>
-    <div class="form-divider">Агентство (РА)</div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Юр. лицо РА <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder='ООО "Агентство"'>
-      </div>
-      <div class="form-group">
-        <label class="form-label">ИНН РА <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder="7700000000">
-      </div>
+      <label class="form-label">ИНН РА <span class="req">*</span></label>
+      <input class="form-input" id="f-inn-ra" type="text" placeholder="7700000000">
     </div>
     <div class="form-divider">Договор</div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Номер ИД <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder="ИД-0000/2024">
+        <label class="form-label">Номер договора <span class="req">*</span></label>
+        <input class="form-input" id="f-contract-num" type="text" placeholder="ИД-0000/2024">
       </div>
       <div class="form-group">
-        <label class="form-label">Дата ИД <span class="req">*</span></label>
-        <input class="form-input" type="date">
+        <label class="form-label">Дата договора <span class="req">*</span></label>
+        <input class="form-input" id="f-contract-date" type="date">
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Тип договора <span class="req">*</span></label>
-        <select class="form-select">
+        <select class="form-select" id="f-contract-type">
           <option value="">Выберите тип</option>
           <option>Агентский</option><option>Комиссионный</option><option>Сервисный</option>
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Предмет договора <span class="req">*</span></label>
-        <input class="form-input" type="text" placeholder="Размещение рекламы">
+        <input class="form-input" id="f-contract-subject" type="text" placeholder="Размещение рекламы">
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
-      <input class="form-input" type="text" placeholder="email@example.com">
-    </div>`;
+      <input class="form-input" id="f-access" type="text" placeholder="email@example.com или имя">
+    </div>
+    ${FILE_DROP}`;
 
-  if(type==='CHANGE') return `
-    <div class="form-divider">Агентство и кабинет</div>
+  if(type==='TOP') return `
+    <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      <select class="form-select" id="f-agency" onchange="onAgencyChange()">
+      <select class="form-select" id="f-agency" onchange="onCascadeChange()">
         <option value="">Выберите агентство</option>
-        ${agencyOptions('')}
+        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
       </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Кабинет <span class="req">*</span></label>
-      <select class="form-select" id="f-cabinet">
-        <option value="" disabled selected>Сначала выберите агентство</option>
-      </select>
-      <div class="cascade-note">Список фильтруется по агентству</div>
     </div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
-      <select class="form-select">
+      <select class="form-select" id="f-platform" onchange="onCascadeChange();onPlatformChange(this,'cur-top')">
         <option value="">Выберите площадку</option>
         ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
       </select>
     </div>
-    <div class="form-divider">Что изменить</div>
+    <div class="form-group">
+      <label class="form-label">Кабинет <span class="req">*</span></label>
+      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
+      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
+      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+    </div>
+    <div class="form-divider">Сумма</div>
+    <div class="form-group">
+      <label class="form-label">Сумма пополнения, <span id="cur-top">руб. до НДС</span> <span class="req">*</span></label>
+      <input class="form-input" id="f-amount" type="number" placeholder="150000">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Комментарий <span class="opt">необязательно</span></label>
+      <textarea class="form-textarea" placeholder="Дополнительная информация..."></textarea>
+    </div>
+    ${FILE_DROP}`;
+
+  if(type==='CHANGE') return `
+    <div class="form-divider">Кабинет</div>
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      <select class="form-select" id="f-agency" onchange="onCascadeChange()">
+        <option value="">Выберите агентство</option>
+        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      <select class="form-select" id="f-platform" onchange="onCascadeChange()">
+        <option value="">Выберите площадку</option>
+        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кабинет <span class="req">*</span></label>
+      <input class="form-input" type="text" id="f-cabinet" placeholder="Введите название или выберите ↓" oninput="onCabinetInput(this)" autocomplete="off">
+      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
+      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
+    </div>
+    <div class="form-divider">Изменение</div>
     <div class="form-group">
       <label class="form-label">Тип изменения <span class="req">*</span></label>
       <select class="form-select">
@@ -867,36 +985,36 @@ function buildForm(type){
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Описание изменения <span class="req">*</span></label>
+      <label class="form-label">Описание изменения <span class="opt">необязательно</span></label>
       <textarea class="form-textarea" placeholder="Что именно изменить и на что..."></textarea>
     </div>
     <div class="form-group">
       <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
-      <input class="form-input" type="text" placeholder="email@example.com">
-    </div>`;
+      <input class="form-input" type="text" placeholder="email@example.com или имя">
+    </div>
+    ${FILE_DROP}`;
 
   if(type==='TECH') return `
-    <div class="form-divider">Агентство и кабинет</div>
+    <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
-      <select class="form-select" id="f-agency" onchange="onAgencyChange()">
+      <select class="form-select" id="f-agency" onchange="onCascadeChange()">
         <option value="">Выберите агентство</option>
-        ${agencyOptions('')}
+        ${AGENCIES.map(a=>`<option>${a}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      <select class="form-select" id="f-platform" onchange="onCascadeChange()">
+        <option value="">Выберите площадку</option>
+        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
       </select>
     </div>
     <div class="form-group">
       <label class="form-label">Кабинет <span class="opt">необязательно</span></label>
-      <select class="form-select" id="f-cabinet">
-        <option value="">Если вопрос по конкретному кабинету</option>
-      </select>
-      <div class="cascade-note">Список фильтруется по агентству</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Площадка <span class="req">*</span></label>
-      <select class="form-select">
-        <option value="">Выберите площадку</option>
-        ${PLATFORMS.map(p=>`<option>${p}</option>`).join('')}
-      </select>
+      <input class="form-input" type="text" id="f-cabinet" placeholder="Если вопрос по конкретному кабинету" oninput="onCabinetInput(this)" autocomplete="off">
+      <div id="f-cabinet-list" style="background:var(--surface2);border:1px solid var(--border2);border-top:none;border-radius:0 0 6px 6px;max-height:140px;overflow-y:auto;display:none;scrollbar-width:none"></div>
+      <div class="cascade-note" id="cascade-note">Фильтруется по агентству и площадке</div>
     </div>
     <div class="form-divider">Проблема</div>
     <div class="form-group">
@@ -911,31 +1029,21 @@ function buildForm(type){
       <label class="form-label">Описание проблемы <span class="req">*</span></label>
       <textarea class="form-textarea" style="min-height:110px" placeholder="Что произошло, когда, как воспроизвести..."></textarea>
     </div>
-    <div class="form-group">
-      <label class="form-label">Прикрепить файлы <span class="opt">необязательно</span></label>
-      <div class="file-drop" onclick="showToast('Загрузка файлов — в финальной версии')">
-        ↑ Перетащите файлы или нажмите для выбора<br>
-        <span style="font-size:11px;margin-top:4px;display:block">Скриншоты, логи · до 10 МБ</span>
-      </div>
-    </div>`;
+    ${FILE_DROP}`;
 
   return '';
 }
 
-// Каскадное обновление кабинетов
-function onAgencyChange(){
+function prefillRA(){
   const agency = document.getElementById('f-agency')?.value;
-  const cab = document.getElementById('f-cabinet');
-  if(!cab) return;
-  const opts = cabinetOptions(agency);
-  cab.innerHTML = (newType==='TECH'?'<option value="">Если вопрос по конкретному кабинету</option>':'') + opts;
+  const raField = document.getElementById('f-ra-name');
+  if(raField && agency && !raField.value) raField.value = agency;
 }
 
+// submitNew below
 function submitNew(){
   const today = '10.04.26';
   const id = 'AO-0'+String(nextId++).padStart(2,'0');
-  const typeMap = {OPEN:'OPEN',TOP:'TOP',CHANGE:'CHANGE',TECH:'TECH'};
-  // Если в форме OPEN заполнена сумма — тип OPEN+TOP
   const amtInput = document.querySelector('#new-body input[type=number]');
   const amt = amtInput?parseInt(amtInput.value)||null:null;
   const type = newType==='OPEN'&&amt?'OPEN+TOP':newType;
@@ -943,11 +1051,13 @@ function submitNew(){
   const agency = agEl?agEl.value||'Клевер Медиа':'Клевер Медиа';
   const cabEl = document.getElementById('f-cabinet');
   const account = cabEl&&cabEl.value?cabEl.value:'Новый кабинет · '+id;
+  const platEl = document.getElementById('f-platform');
+  const platform = platEl&&platEl.value?platEl.value:PLATFORMS[0];
 
   rows.unshift({
     id, date:today, iso:'2026-04-10',
-    platform: PLATFORMS[0], agency, type, account,
-    client: 'ООО "Новый клиент"', status:'НОВАЯ', wait:0, amount:amt
+    platform, agency, type, account,
+    client:'ООО "Новый клиент"', status:'НОВАЯ', wait:0, amount:amt
   });
   closeNew();
   renderTable();
