@@ -221,6 +221,25 @@
     font-family: var(--mono); font-size: 11px; color: var(--text2);
   }
 
+  /* SIMILAR ACCOUNTS WARNING */
+  .similar-warn {
+    margin-top: 8px; border-radius: 6px; padding: 10px 12px;
+    background: var(--yellow-dim); border: 1px solid var(--yellow);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .similar-warn-title {
+    font-family: var(--mono); font-size: 10px; color: var(--yellow);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .similar-list { display: flex; flex-direction: column; gap: 3px; }
+  .similar-item {
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    padding: 4px 8px; border-radius: 4px; background: rgba(245,158,11,0.07);
+    cursor: pointer; transition: all 0.12s; border: 1px solid transparent;
+    word-break: break-all;
+  }
+  .similar-item:hover { border-color: var(--yellow); color: var(--yellow); }
+
   /* MANUAL SELECT */
   .manual-select { margin-top: 10px; }
   .manual-select-label {
@@ -534,6 +553,16 @@ function exactMatch(rawName) {
   return ACCOUNTS.find(a => normalize(a.name) === q) || null;
 }
 
+// Ищем аккаунты у которых имя начинается с имени найденного (паттерн нумерации)
+function findSimilarAccounts(matched) {
+  if (!matched) return [];
+  const base = normalize(matched.name);
+  return ACCOUNTS.filter(a => {
+    const n = normalize(a.name);
+    return n !== base && n.startsWith(base);
+  });
+}
+
 // ── PARSE ─────────────────────────────────────────────────────────────────────
 async function runParse() {
   const key  = document.getElementById('api-key').value.trim();
@@ -620,8 +649,9 @@ ${accountList}
 
     // Exact match по raw_account_name
     matchedAccount = exactMatch(parsed.raw_account_name);
+    const similarAccounts = findSimilarAccounts(matchedAccount);
 
-    renderResult(parsed, matchedAccount);
+    renderResult(parsed, matchedAccount, similarAccounts);
     toast('Разобрано успешно', 'ok');
 
   } catch(e) {
@@ -633,7 +663,7 @@ ${accountList}
 }
 
 // ── RENDER RESULT ─────────────────────────────────────────────────────────────
-function renderResult(p, match) {
+function renderResult(p, match, similar = []) {
   document.getElementById('result-badge').textContent =
     confLabel(p.confidence);
   document.getElementById('result-badge').style.color =
@@ -692,6 +722,18 @@ function renderResult(p, match) {
           <div class="match-name">${escHtml(match.name)}</div>
           <div class="match-meta">${escHtml(match.platform)} · ${escHtml(match.agency)}</div>
         </div>`;
+      if (similar.length > 0) {
+        html += `
+          <div class="similar-warn">
+            <div class="similar-warn-title">⚠ Есть похожие аккаунты — проверьте что выбрали нужный</div>
+            <div class="similar-list">
+              ${similar.map(a => `
+                <div class="similar-item" onclick="selectManual(${JSON.stringify(a.name)}, ${JSON.stringify(a.platform)}, ${JSON.stringify(a.agency)})">
+                  ${escHtml(a.name)} <span style="color:var(--text3)">· ${escHtml(a.platform)} · ${escHtml(a.agency)}</span>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      }
     } else {
       html += `
         <div class="match-block not-found">
@@ -759,8 +801,8 @@ function filterManual(q) {
 
 function selectManual(name, platform, agency) {
   matchedAccount = { name, platform, agency };
-  // Перерисовываем только блок матчинга
-  const block = document.querySelector('.match-block.not-found');
+  // Перерисовываем блок матчинга — находим любой match-block (found или not-found)
+  const block = document.querySelector('.match-block');
   if (block) {
     block.className = 'match-block found';
     block.innerHTML = `
@@ -768,6 +810,9 @@ function selectManual(name, platform, agency) {
       <div class="match-name">${escHtml(name)}</div>
       <div class="match-meta">${escHtml(platform)} · ${escHtml(agency)}</div>`;
   }
+  // Убираем предупреждение о похожих — выбор сделан
+  const warn = document.querySelector('.similar-warn');
+  if (warn) warn.remove();
   toast('Аккаунт выбран: ' + name.slice(0, 40), 'ok');
 }
 
