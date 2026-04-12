@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AdOps · Intake Parser</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117; --surface: #161b27; --surface2: #1e2535; --surface3: #252d40;
+    --border: #2a3347; --border2: #3a4560;
+    --text: #e2e8f0; --text2: #8b99b5; --text3: #5a6880;
+    --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.12);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.10);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.10);
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.10);
+    --cyan: #06b6d4; --cyan-dim: rgba(6,182,212,0.10);
+    --purple: #a855f7; --purple-dim: rgba(168,85,247,0.10);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px;
+    min-height: 100vh; padding: 32px 24px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex; align-items: baseline; gap: 16px; margin-bottom: 28px;
+  }
+  .header-brand {
+    font-family: var(--mono); font-size: 16px; font-weight: 600;
+    color: var(--accent); letter-spacing: 0.06em;
+  }
+  .header-brand span { color: var(--text3); font-weight: 400; }
+  .header-sub {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .header-badge {
+    margin-left: auto; padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--yellow); background: var(--yellow-dim);
+    color: var(--yellow); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* API KEY BAR */
+  .api-bar {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .api-bar label {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  }
+  .api-key-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 5px; padding: 6px 10px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .api-key-input:focus { border-color: var(--accent); }
+  .api-status {
+    font-family: var(--mono); font-size: 11px; white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .api-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* MAIN GRID */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .panel-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-head-title {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .panel-head-badge {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    color: var(--text3);
+  }
+  .panel-body { padding: 16px; }
+
+  /* TYPE SELECTOR */
+  .type-row { display: flex; gap: 6px; margin-bottom: 14px; }
+  .type-btn {
+    flex: 1; padding: 8px 4px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-family: var(--mono);
+    font-size: 11px; cursor: pointer; transition: all 0.12s; text-align: center;
+  }
+  .type-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+  .type-btn.active-top    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .type-btn.active-open   { background: var(--green-dim);  border-color: var(--green);  color: var(--green); }
+  .type-btn.active-change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .type-btn.active-tech   { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+
+  /* TEXTAREA */
+  .input-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 6px; padding: 12px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    resize: vertical; min-height: 180px; outline: none; transition: border-color 0.15s;
+  }
+  .input-textarea:focus { border-color: var(--accent); }
+  .input-textarea::placeholder { color: var(--text3); }
+
+  /* EXAMPLES */
+  .examples { margin-top: 10px; }
+  .examples-label {
+    font-family: var(--mono); font-size: 9px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .example-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ex-chip {
+    padding: 3px 9px; border-radius: 20px; border: 1px dashed var(--border2);
+    color: var(--text3); font-size: 11px; font-family: var(--mono); cursor: pointer;
+    transition: all 0.12s;
+  }
+  .ex-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  /* PARSE BUTTON */
+  .parse-btn {
+    width: 100%; margin-top: 12px; padding: 11px;
+    background: var(--accent); border: none; border-radius: 6px;
+    color: #fff; font-family: var(--mono); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.04em;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .parse-btn:hover { background: #2563eb; }
+  .parse-btn:disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; }
+
+  /* SPINNER */
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESULT PANEL */
+  .result-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 280px; gap: 10px;
+  }
+  .result-empty-icon { font-size: 32px; opacity: 0.2; }
+  .result-empty-text { font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: center; line-height: 1.6; }
+
+  /* RESULT FIELDS */
+  .result-section { margin-bottom: 18px; }
+  .result-section:last-child { margin-bottom: 0; }
+  .result-section-title {
+    font-family: var(--mono); font-size: 9px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+
+  .field-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+  }
+  .field-row:last-child { border-bottom: none; }
+  .field-key {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.06em; text-transform: uppercase;
+    min-width: 110px; padding-top: 2px; flex-shrink: 0;
+  }
+  .field-val {
+    font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1;
+  }
+  .field-val.amt { color: var(--accent); font-weight: 600; font-size: 14px; }
+  .field-val.muted { color: var(--text3); }
+
+  /* STATUS BADGES */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 20px; font-family: var(--mono);
+    font-size: 10px; border: 1px solid; white-space: nowrap;
+  }
+  .badge::before { content:''; width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+  .badge-found    { background: var(--green-dim);  border-color: var(--green);  color: var(--green); }
+  .badge-found::before { background: var(--green); }
+  .badge-notfound { background: var(--red-dim);    border-color: var(--red);    color: var(--red); }
+  .badge-notfound::before { background: var(--red); }
+  .badge-noinfo   { background: var(--surface3);   border-color: var(--border2);color: var(--text3); }
+  .badge-noinfo::before { background: var(--text3); }
+  .badge-type     { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .badge-type::before { display: none; }
+
+  /* ACCOUNT MATCH BLOCK */
+  .match-block {
+    margin-top: 8px; border-radius: 6px; padding: 12px;
+    border: 1px solid;
+  }
+  .match-block.found {
+    background: var(--green-dim); border-color: var(--green);
+  }
+  .match-block.not-found {
+    background: var(--red-dim); border-color: var(--red);
+  }
+  .match-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .match-title.found  { color: var(--green); }
+  .match-title.not-found { color: var(--red); }
+  .match-name {
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    font-weight: 500; margin-bottom: 4px; word-break: break-all;
+  }
+  .match-meta {
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+  }
+
+  /* MANUAL SELECT */
+  .manual-select { margin-top: 10px; }
+  .manual-select-label {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .manual-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 5px; padding: 7px 10px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.15s;
+    margin-bottom: 4px;
+  }
+  .manual-search:focus { border-color: var(--accent); }
+  .manual-list {
+    max-height: 150px; overflow-y: auto; scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+    border: 1px solid var(--border2); border-radius: 5px;
+    background: var(--surface2);
+  }
+  .manual-item {
+    padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .manual-item:last-child { border-bottom: none; }
+  .manual-item:hover { background: var(--surface3); }
+  .manual-item-name { font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .manual-item-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .manual-empty { padding: 10px; font-family: var(--mono); font-size: 11px; color: var(--text3); text-align: center; }
+
+  /* APPLY BUTTON */
+  .apply-btn {
+    width: 100%; margin-top: 14px; padding: 9px;
+    background: var(--green-dim); border: 1px solid var(--green);
+    border-radius: 6px; color: var(--green);
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.04em;
+  }
+  .apply-btn:hover { background: var(--green); color: #000; }
+  .apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* CONFIDENCE BAR */
+  .conf-bar-wrap { margin-top: 6px; }
+  .conf-bar-track {
+    height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden;
+  }
+  .conf-bar-fill {
+    height: 100%; border-radius: 2px; transition: width 0.5s ease;
+  }
+  .conf-label {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    margin-bottom: 3px; display: flex; justify-content: space-between;
+  }
+
+  /* RAW JSON TOGGLE */
+  .raw-toggle {
+    display: flex; align-items: center; gap: 6px; margin-top: 16px;
+    cursor: pointer; color: var(--text3); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.08em; text-transform: uppercase; user-select: none;
+    border-top: 1px solid var(--border); padding-top: 12px;
+  }
+  .raw-toggle:hover { color: var(--text2); }
+  .raw-block {
+    margin-top: 8px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; font-family: var(--mono); font-size: 11px;
+    color: var(--text2); white-space: pre-wrap; word-break: break-all;
+    max-height: 220px; overflow-y: auto; display: none; line-height: 1.5;
+  }
+
+  /* REFERENCE PANEL */
+  .ref-panel {
+    margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .ref-head {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ref-head-title {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .ref-count {
+    margin-left: auto; font-family: var(--mono); font-size: 10px;
+    color: var(--text3); background: var(--surface3);
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .ref-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ref-table th {
+    font-family: var(--mono); font-size: 9px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 12px;
+    text-align: left; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .ref-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: var(--surface2); }
+  .ref-table td:first-child { color: var(--text); max-width: 200px; word-break: break-all; }
+  .ref-table td:nth-child(2) { color: var(--text2); white-space: nowrap; }
+  .ref-table td:nth-child(3) { color: var(--text3); white-space: nowrap; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 10px 16px;
+    font-family: var(--mono); font-size: 12px; color: var(--text);
+    opacity: 0; transform: translateY(10px); transition: all 0.25s;
+    pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.ok { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">ADOPS<span>DESK</span></div>
+  <div class="header-sub">Intake Parser · Test Stand</div>
+  <div class="header-badge">v0.1 · тест</div>
+</div>
+
+<!-- API KEY BAR -->
+<div class="api-bar">
+  <label>DeepSeek API Key</label>
+  <input type="password" class="api-key-input" id="api-key" placeholder="sk-..." oninput="checkKey()">
+  <div class="api-status" id="api-status">
+    <div class="api-dot" style="background:var(--text3)"></div>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">не задан</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- LEFT: INPUT -->
+  <div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-title">Текст заявки</div>
+        <div class="panel-head-badge" id="type-indicator">тип не выбран</div>
+      </div>
+      <div class="panel-body">
+
+        <!-- TYPE SELECTOR -->
+        <div class="type-row">
+          <button class="type-btn" id="btn-top"    onclick="setType('TOP')">TOP<br><span style="font-size:9px;opacity:0.7">пополнение</span></button>
+          <button class="type-btn" id="btn-open"   onclick="setType('OPEN')">OPEN<br><span style="font-size:9px;opacity:0.7">создание</span></button>
+          <button class="type-btn" id="btn-change" onclick="setType('CHANGE')">CHANGE<br><span style="font-size:9px;opacity:0.7">изменение</span></button>
+          <button class="type-btn" id="btn-tech"   onclick="setType('TECH')">TECH<br><span style="font-size:9px;opacity:0.7">техвопрос</span></button>
+        </div>
+
+        <textarea class="input-textarea" id="raw-input"
+          placeholder="Вставьте текст заявки из письма или Telegram...&#10;&#10;Пример:&#10;Пополни, плиз, кабинет&#10;700 000 руб. до НДС&#10;Кабинет: miranda.media.sc1 // RP // SC // Бабаевская Екатерина"></textarea>
+
+        <!-- EXAMPLES -->
+        <div class="examples">
+          <div class="examples-label">Примеры для теста</div>
+          <div class="example-chips">
+            <div class="ex-chip" onclick="loadExample('top1')">TOP · простой</div>
+            <div class="ex-chip" onclick="loadExample('top2')">TOP · аккаунт не найден</div>
+            <div class="ex-chip" onclick="loadExample('open1')">OPEN · создание</div>
+            <div class="ex-chip" onclick="loadExample('tech1')">TECH · вопрос</div>
+          </div>
+        </div>
+
+        <button class="parse-btn" id="parse-btn" onclick="runParse()">
+          <div class="spinner" id="spinner"></div>
+          <span id="parse-btn-text">Разобрать заявку</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: RESULT -->
+  <div>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-head-title">Результат разбора</div>
+        <div class="panel-head-badge" id="result-badge">—</div>
+      </div>
+      <div class="panel-body" id="result-body">
+        <div class="result-empty">
+          <div class="result-empty-icon">⬡</div>
+          <div class="result-empty-text">Вставьте текст заявки<br>и нажмите «Разобрать»</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- REFERENCE TABLE -->
+<div class="ref-panel">
+  <div class="ref-head">
+    <div class="ref-head-title">Справочник аккаунтов · тестовые данные</div>
+    <div class="ref-count" id="ref-count">0</div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="ref-table">
+      <thead><tr><th>Аккаунт</th><th>Площадка</th><th>Агентство</th></tr></thead>
+      <tbody id="ref-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── СПРАВОЧНИК ────────────────────────────────────────────────────────────────
+// Тестовые данные. В продакшне — загружается из ACCOUNTS_DATA (Sheets / PostgreSQL)
+const ACCOUNTS = [
+  { name: 'miranda.media.sc1 // RP // SC //',         platform: 'ВКонтакте',      agency: 'Социал Крафт' },
+  { name: 'КП Пушкино Дом',                           platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'КП Пушкино Дом1',                          platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'КП Пушкино Дом2',                          platform: 'Яндекс Директ',  agency: 'Новый Формат' },
+  { name: 'ВН_Й ЖУРНАЛ__VK__ВИНОУ',                  platform: 'VK Реклама',     agency: 'Клевер Медиа' },
+  { name: 'Цифра_Яндекс_Ц48',                         platform: 'Яндекс Директ',  agency: 'Клевер Медиа' },
+  { name: 'Скартел_ВК_Профи',                         platform: 'VK Реклама',     agency: 'Артель РА' },
+  { name: 'МедиаГрупп_Яндекс_МГ01',                  platform: 'Яндекс Директ',  agency: 'Примус Диджитал' },
+  { name: 'РусТрейд_МТС_RT22',                        platform: 'МТС Маркетолог', agency: 'Новый Формат' },
+  { name: 'ТехноПарк_myTarget_ТП',                    platform: 'myTarget',        agency: 'Примус Диджитал' },
+  { name: 'Ритейл_МТС_Р11',                           platform: 'МТС Маркетолог', agency: 'Клевер Медиа' },
+  { name: 'СтройГрупп_Яндекс_СГ',                    platform: 'Яндекс Директ',  agency: 'Артель РА' },
+  { name: 'Авто_Яндекс_А99',                          platform: 'myTarget',        agency: 'Новый Формат' },
+  { name: 'Фуд_VK_Ф03',                               platform: 'VK Реклама',     agency: 'Клевер Медиа' },
+];
+
+// ── ПРИМЕРЫ ───────────────────────────────────────────────────────────────────
+const EXAMPLES = {
+  top1: {
+    type: 'TOP',
+    text: 'Привет! Пополни, плиз, кабинет:\n700 000 руб. до НДС\nКабинет: miranda.media.sc1 // RP // SC // Бабаевская Екатерина'
+  },
+  top2: {
+    type: 'TOP',
+    text: 'Добрый день. Нужно пополнить аккаунт "Скартел ВК Профессионал" на 150 000 руб до НДС. Срочно, пожалуйста.'
+  },
+  open1: {
+    type: 'OPEN',
+    text: 'Добрый день!\nПросим открыть новый рекламный кабинет в Яндекс Директ.\nРекламодатель: ООО "МедиаГрупп"\nИНН: 7712345678\nАгентство: Примус Диджитал\nДоговор № ИД-0045/2024 от 15.01.2024\nДоступы выдать на: ivanova@mediag.ru'
+  },
+  tech1: {
+    type: 'TECH',
+    text: 'Здравствуйте! У нас проблема с кабинетом РусТрейд_МТС_RT22 — объявления не проходят модерацию уже 3 дня. Площадка МТС. Что-то можете сделать?'
+  }
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentType = null;
+let parseResult = null;
+let matchedAccount = null;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  renderRefTable();
+}
+
+function renderRefTable() {
+  document.getElementById('ref-count').textContent = ACCOUNTS.length;
+  document.getElementById('ref-body').innerHTML = ACCOUNTS.map(a => `
+    <tr>
+      <td>${escHtml(a.name)}</td>
+      <td>${escHtml(a.platform)}</td>
+      <td>${escHtml(a.agency)}</td>
+    </tr>`).join('');
+}
+
+// ── TYPE SELECTOR ─────────────────────────────────────────────────────────────
+function setType(t) {
+  currentType = t;
+  ['TOP','OPEN','CHANGE','TECH'].forEach(x => {
+    const btn = document.getElementById('btn-'+x.toLowerCase());
+    btn.className = 'type-btn' + (x === t ? ' active-'+x.toLowerCase() : '');
+  });
+  const colors = { TOP: 'var(--accent)', OPEN: 'var(--green)', CHANGE: 'var(--yellow)', TECH: 'var(--purple)' };
+  const ind = document.getElementById('type-indicator');
+  ind.textContent = t;
+  ind.style.color = colors[t];
+}
+
+function loadExample(key) {
+  const ex = EXAMPLES[key];
+  if (!ex) return;
+  setType(ex.type);
+  document.getElementById('raw-input').value = ex.text;
+}
+
+// ── API KEY ───────────────────────────────────────────────────────────────────
+function checkKey() {
+  const key = document.getElementById('api-key').value.trim();
+  const st  = document.getElementById('api-status');
+  if (key.startsWith('sk-') && key.length > 10) {
+    st.innerHTML = `<div class="api-dot" style="background:var(--green)"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--green)">задан</span>`;
+  } else if (key.length > 0) {
+    st.innerHTML = `<div class="api-dot" style="background:var(--yellow)"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--yellow)">проверьте формат</span>`;
+  } else {
+    st.innerHTML = `<div class="api-dot" style="background:var(--text3)"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3)">не задан</span>`;
+  }
+}
+
+// ── EXACT MATCH ───────────────────────────────────────────────────────────────
+function normalize(s) {
+  return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function exactMatch(rawName) {
+  if (!rawName) return null;
+  const q = normalize(rawName);
+  return ACCOUNTS.find(a => normalize(a.name) === q) || null;
+}
+
+// ── PARSE ─────────────────────────────────────────────────────────────────────
+async function runParse() {
+  const key  = document.getElementById('api-key').value.trim();
+  const text = document.getElementById('raw-input').value.trim();
+
+  if (!key) { toast('Введите DeepSeek API ключ', 'err'); return; }
+  if (!text) { toast('Вставьте текст заявки', 'err'); return; }
+  if (!currentType) { toast('Выберите тип заявки', 'err'); return; }
+
+  setLoading(true);
+  clearResult();
+
+  const accountList = ACCOUNTS.map(a =>
+    `"${a.name}" | ${a.platform} | ${a.agency}`
+  ).join('\n');
+
+  const systemPrompt = `Ты — парсер рекламных заявок для AdOps Desk.
+Твоя задача: извлечь структурированные поля из произвольного текста заявки.
+
+Тип заявки: ${currentType}
+
+Справочник аккаунтов (название | площадка | агентство):
+${accountList}
+
+Верни ТОЛЬКО валидный JSON без markdown-обёртки. Структура:
+{
+  "type": "${currentType}",
+  "raw_account_name": "точное название аккаунта как написал клиент, или null",
+  "amount": число в рублях или null,
+  "platform": "название площадки если явно указана, иначе null",
+  "agency": "название агентства если явно указано, иначе null",
+  "client_entity": "юр. лицо рекламодателя если упомянуто, иначе null",
+  "inn": "ИНН если указан, иначе null",
+  "contract_num": "номер договора если указан, иначе null",
+  "contract_date": "дата договора если указана, иначе null",
+  "contract_type": "тип договора если указан, иначе null",
+  "access_email": "email для доступа если указан, иначе null",
+  "issue_topic": "тема техвопроса если указана, иначе null",
+  "comment": "любой важный комментарий или уточнение из текста, иначе null",
+  "confidence": число от 0.0 до 1.0 — общая уверенность в разборе
+}
+
+Важно:
+- raw_account_name — извлеки ровно то как написал клиент, не ищи в справочнике сам
+- amount всегда число (только цифры, без пробелов и символов)
+- confidence: 1.0 = все поля извлечены однозначно, 0.5 = есть неясности`;
+
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        max_tokens: 800,
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text }
+        ]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const raw  = data.choices?.[0]?.message?.content || '';
+
+    // Парсим JSON
+    let parsed;
+    try {
+      const clean = raw.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch(e) {
+      throw new Error('LLM вернул не-JSON: ' + raw.slice(0, 120));
+    }
+
+    parseResult = parsed;
+
+    // Exact match по raw_account_name
+    matchedAccount = exactMatch(parsed.raw_account_name);
+
+    renderResult(parsed, matchedAccount);
+    toast('Разобрано успешно', 'ok');
+
+  } catch(e) {
+    renderError(e.message);
+    toast('Ошибка: ' + e.message.slice(0, 60), 'err');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── RENDER RESULT ─────────────────────────────────────────────────────────────
+function renderResult(p, match) {
+  document.getElementById('result-badge').textContent =
+    confLabel(p.confidence);
+  document.getElementById('result-badge').style.color =
+    p.confidence >= 0.8 ? 'var(--green)' : p.confidence >= 0.6 ? 'var(--yellow)' : 'var(--red)';
+
+  const confColor = p.confidence >= 0.8 ? 'var(--green)' : p.confidence >= 0.6 ? 'var(--yellow)' : 'var(--red)';
+  const confPct   = Math.round((p.confidence || 0) * 100);
+
+  let html = '';
+
+  // — Confidence bar
+  html += `
+    <div class="result-section">
+      <div class="result-section-title">Уверенность LLM</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-label">
+          <span>confidence</span>
+          <span style="color:${confColor}">${confPct}%</span>
+        </div>
+        <div class="conf-bar-track">
+          <div class="conf-bar-fill" style="width:${confPct}%;background:${confColor}"></div>
+        </div>
+      </div>
+    </div>`;
+
+  // — Основные поля
+  html += `<div class="result-section"><div class="result-section-title">Извлечённые поля</div>`;
+
+  html += fieldRow('Тип', `<span class="badge badge-type">${escHtml(p.type || currentType)}</span>`);
+
+  if (p.amount) html += fieldRow('Сумма', `<span class="field-val amt">${Number(p.amount).toLocaleString('ru-RU')} ₽</span>`);
+  if (p.platform) html += fieldRow('Площадка', fVal(p.platform));
+  if (p.agency)   html += fieldRow('Агентство', fVal(p.agency));
+  if (p.client_entity) html += fieldRow('Рекламодатель', fVal(p.client_entity));
+  if (p.inn)           html += fieldRow('ИНН', fValMono(p.inn));
+  if (p.contract_num)  html += fieldRow('Договор №', fValMono(p.contract_num));
+  if (p.contract_date) html += fieldRow('Дата договора', fValMono(p.contract_date));
+  if (p.contract_type) html += fieldRow('Тип договора', fVal(p.contract_type));
+  if (p.access_email)  html += fieldRow('Доступ для', fValMono(p.access_email));
+  if (p.issue_topic)   html += fieldRow('Тема', fVal(p.issue_topic));
+  if (p.comment)       html += fieldRow('Комментарий', fVal(p.comment));
+
+  html += `</div>`;
+
+  // — Матчинг аккаунта
+  html += `<div class="result-section"><div class="result-section-title">Матчинг аккаунта</div>`;
+  html += fieldRow('Из текста', p.raw_account_name
+    ? `<span class="field-val" style="word-break:break-all">${escHtml(p.raw_account_name)}</span>`
+    : `<span class="field-val muted">не указан</span>`);
+
+  if (p.raw_account_name) {
+    if (match) {
+      html += `
+        <div class="match-block found">
+          <div class="match-title found">✓ Точное совпадение найдено</div>
+          <div class="match-name">${escHtml(match.name)}</div>
+          <div class="match-meta">${escHtml(match.platform)} · ${escHtml(match.agency)}</div>
+        </div>`;
+    } else {
+      html += `
+        <div class="match-block not-found">
+          <div class="match-title not-found">✕ Аккаунт не найден в справочнике</div>
+          <div class="match-meta" style="margin-bottom:8px">Запрос: <span style="color:var(--text)">${escHtml(p.raw_account_name)}</span></div>
+          <div class="manual-select">
+            <div class="manual-select-label">Выберите вручную</div>
+            <input class="manual-search" type="text" placeholder="Поиск по справочнику..." oninput="filterManual(this.value)">
+            <div class="manual-list" id="manual-list">${renderManualList('')}</div>
+          </div>
+        </div>`;
+    }
+  } else {
+    html += `<div style="padding:8px 0;font-family:var(--mono);font-size:11px;color:var(--text3)">Аккаунт не упомянут в тексте — заполните вручную</div>`;
+  }
+
+  html += `</div>`;
+
+  // — Apply button
+  html += `<button class="apply-btn" onclick="applyToForm()">
+    Применить → заполнить форму
+  </button>`;
+
+  // — Raw JSON toggle
+  html += `
+    <div class="raw-toggle" onclick="toggleRaw()">
+      <span>▶</span> raw JSON от DeepSeek
+    </div>
+    <div class="raw-block" id="raw-block">${escHtml(JSON.stringify(p, null, 2))}</div>`;
+
+  document.getElementById('result-body').innerHTML = html;
+}
+
+function fieldRow(key, valHtml) {
+  return `<div class="field-row">
+    <div class="field-key">${escHtml(key)}</div>
+    <div>${valHtml}</div>
+  </div>`;
+}
+function fVal(v)     { return `<span class="field-val">${escHtml(v)}</span>`; }
+function fValMono(v) { return `<span class="field-val" style="font-family:var(--mono);font-size:12px">${escHtml(v)}</span>`; }
+function confLabel(c) {
+  if (!c) return '—';
+  const p = Math.round(c * 100);
+  return p >= 80 ? `${p}% · уверен` : p >= 60 ? `${p}% · неуверен` : `${p}% · проверь`;
+}
+
+// ── MANUAL SELECT ─────────────────────────────────────────────────────────────
+function renderManualList(q) {
+  const filtered = ACCOUNTS.filter(a =>
+    !q || normalize(a.name).includes(normalize(q))
+  );
+  if (!filtered.length) return `<div class="manual-empty">Не найдено</div>`;
+  return filtered.map(a => `
+    <div class="manual-item" onclick="selectManual(${JSON.stringify(a.name)}, ${JSON.stringify(a.platform)}, ${JSON.stringify(a.agency)})">
+      <div class="manual-item-name">${escHtml(a.name)}</div>
+      <div class="manual-item-meta">${escHtml(a.platform)} · ${escHtml(a.agency)}</div>
+    </div>`).join('');
+}
+
+function filterManual(q) {
+  const list = document.getElementById('manual-list');
+  if (list) list.innerHTML = renderManualList(q);
+}
+
+function selectManual(name, platform, agency) {
+  matchedAccount = { name, platform, agency };
+  // Перерисовываем только блок матчинга
+  const block = document.querySelector('.match-block.not-found');
+  if (block) {
+    block.className = 'match-block found';
+    block.innerHTML = `
+      <div class="match-title found">✓ Выбрано вручную</div>
+      <div class="match-name">${escHtml(name)}</div>
+      <div class="match-meta">${escHtml(platform)} · ${escHtml(agency)}</div>`;
+  }
+  toast('Аккаунт выбран: ' + name.slice(0, 40), 'ok');
+}
+
+// ── APPLY TO FORM (заглушка — покажем что было бы передано) ───────────────────
+function applyToForm() {
+  if (!parseResult) return;
+  const payload = {
+    ...parseResult,
+    matched_account: matchedAccount || null,
+    match_method: matchedAccount
+      ? (parseResult.raw_account_name && normalize(parseResult.raw_account_name) === normalize(matchedAccount?.name) ? 'exact' : 'manual')
+      : 'not_found'
+  };
+  // В продакшне здесь будет вызов callback для заполнения формы
+  // Пока показываем что передаётся
+  toast('Payload готов · см. консоль', 'ok');
+  console.log('[AdOps Intake] Payload to form:', payload);
+  alert('Payload для формы:\n\n' + JSON.stringify(payload, null, 2));
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function toggleRaw() {
+  const block = document.getElementById('raw-block');
+  if (!block) return;
+  const open = block.style.display === 'block';
+  block.style.display = open ? 'none' : 'block';
+}
+
+function clearResult() {
+  parseResult = null;
+  matchedAccount = null;
+  document.getElementById('result-body').innerHTML = `
+    <div class="result-empty">
+      <div class="result-empty-icon">⬡</div>
+      <div class="result-empty-text">Разбор...</div>
+    </div>`;
+  document.getElementById('result-badge').textContent = '—';
+  document.getElementById('result-badge').style.color = '';
+}
+
+function renderError(msg) {
+  document.getElementById('result-body').innerHTML = `
+    <div class="result-empty">
+      <div class="result-empty-icon" style="color:var(--red)">✕</div>
+      <div class="result-empty-text" style="color:var(--red)">${escHtml(msg)}</div>
+    </div>`;
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('parse-btn');
+  const sp  = document.getElementById('spinner');
+  const txt = document.getElementById('parse-btn-text');
+  btn.disabled = on;
+  sp.style.display  = on ? 'block' : 'none';
+  txt.textContent   = on ? 'Разбираю...' : 'Разобрать заявку';
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2800);
+}
+
+init();
+</script>
+</body>
+</html>
