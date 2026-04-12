@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AdOps Desk — Рабочий стол менеджера</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117; --surface: #161b27; --surface2: #1e2535; --surface3: #252d40;
+    --border: #2a3347; --border2: #3a4560;
+    --text: #e2e8f0; --text2: #8b99b5; --text3: #5a6880;
+    --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.12);
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.12);
+    --cyan: #06b6d4; --cyan-dim: rgba(6,182,212,0.12);
+    --purple: #a855f7; --purple-dim: rgba(168,85,247,0.12);
+    --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+    --sidebar-w: 220px; --topbar-h: 56px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; overflow-x: hidden; }
+
+  /* TOPBAR */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px; z-index: 100; gap: 12px;
+  }
+  .topbar-brand { font-family: var(--mono); font-weight: 600; font-size: 15px; color: var(--accent); letter-spacing: 0.05em; white-space: nowrap; }
+  .topbar-brand span { color: var(--text2); font-weight: 400; }
+  .topbar-actions { display: flex; gap: 8px; margin-left: auto; }
+  .btn-type {
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-type.open  { background: var(--green-dim);  border-color: var(--green);  color: var(--green); }
+  .btn-type.top   { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .btn-type.change{ background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .btn-type.tech  { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+  .topbar-user { font-family: var(--mono); font-size: 12px; color: var(--text2); white-space: nowrap; display: flex; align-items: center; gap: 8px; margin-left: 16px; }
+  .user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+  /* LAYOUT */
+  .layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+    display: flex; flex-direction: column; overflow-y: auto; z-index: 50;
+  }
+  .sidebar-section { padding: 14px 0 6px; }
+  .sidebar-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; padding: 0 16px 8px; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+    cursor: pointer; transition: all 0.12s; border-left: 2px solid transparent; font-size: 13px; color: var(--text2);
+  }
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); border-left-color: var(--border2); }
+  .sidebar-item.active { background: var(--accent-dim); color: var(--accent); border-left-color: var(--accent); }
+  .sidebar-item .icon { font-size: 14px; width: 16px; text-align: center; flex-shrink: 0; }
+  .sidebar-count { margin-left: auto; font-family: var(--mono); font-size: 10px; background: var(--surface3); color: var(--text3); padding: 2px 6px; border-radius: 10px; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 6px 16px; }
+  .sidebar-type-btn {
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+    cursor: pointer; font-size: 13px; color: var(--text2); transition: all 0.12s; border-left: 2px solid transparent;
+  }
+  .sidebar-type-btn:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-type-btn .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar-search { margin: 0 10px 4px; display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 5px 10px; }
+  .sidebar-search input { background: none; border: none; outline: none; color: var(--text); font-size: 12px; font-family: var(--sans); width: 100%; }
+  .sidebar-search input::placeholder { color: var(--text3); }
+  .sidebar-pinned-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 16px 4px; }
+  .sidebar-list { max-height: 150px; overflow-y: auto; scrollbar-width: none; }
+  .sidebar-list::-webkit-scrollbar { display: none; }
+  .sidebar-empty { padding: 6px 16px; font-size: 12px; color: var(--text3); display: none; }
+  .sidebar { scrollbar-width: none; }
+  .sidebar::-webkit-scrollbar { display: none; }
+
+  /* MAIN */
+  .main { margin-left: var(--sidebar-w); flex: 1; padding: 24px; }
+
+  /* SUMMARY CARDS */
+  .summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer; transition: border-color 0.15s, transform 0.1s;
+  }
+  .summary-card:hover { transform: translateY(-1px); border-color: var(--border2); }
+  .summary-card.card-active { box-shadow: 0 0 0 1px currentColor; }
+  .summary-card .label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .summary-card .value { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
+  .summary-card .sub { font-size: 11px; color: var(--text3); }
+  .c-new   .value { color: var(--text); }
+  .c-work  .value { color: var(--accent); }
+  .c-clarify .value { color: var(--yellow); }
+  .c-done  .value { color: var(--green); }
+  .c-wait  .value { color: var(--red); }
+  .c-new.card-active   { border-color: var(--text2) !important; }
+  .c-work.card-active  { border-color: var(--accent) !important; }
+  .c-clarify.card-active { border-color: var(--yellow) !important; }
+  .c-done.card-active  { border-color: var(--green) !important; }
+  .c-wait.card-active  { border-color: var(--red) !important; }
+
+  /* FILTERS */
+  .filters-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .f-all.active    { background: var(--surface3); border-color: var(--border2); color: var(--text); }
+  .f-new.active    { background: var(--surface3); border-color: var(--text2); color: var(--text); }
+  .f-work.active   { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .f-clarify.active{ background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .f-passed.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+  .f-done.active   { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .f-complete.active{ background: rgba(34,197,94,0.2); border-color: var(--green); color: var(--green); }
+  .filters-spacer { flex: 1; }
+  .search-box {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans);
+    font-size: 13px; outline: none; transition: border-color 0.15s;
+  }
+  .search-box::placeholder { color: var(--text3); }
+  .search-box:focus { border-color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 11px 12px;
+    text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr.selected { background: var(--accent-dim); }
+  td { padding: 11px 12px; font-size: 13px; vertical-align: middle; }
+
+  .type-badge {
+    display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500; white-space: nowrap; border: 1px solid;
+  }
+  .type-TOP      { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .type-OPEN     { background: var(--green-dim);  color: var(--green);  border-color: var(--green); }
+  .type-OPENTOP  { background: linear-gradient(90deg,var(--green-dim),var(--accent-dim)); color: var(--cyan); border-color: var(--cyan); }
+  .type-CHANGE   { background: var(--yellow-dim); color: var(--yellow); border-color: var(--yellow); }
+  .type-TECH     { background: var(--purple-dim); color: var(--purple); border-color: var(--purple); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+    border-radius: 20px; font-size: 11px; font-family: var(--mono); white-space: nowrap;
+  }
+  .status-badge::before { content:''; width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+  .s-НОВАЯ    { background: var(--surface3); color: var(--text2); }
+  .s-НОВАЯ::before { background: var(--text3); }
+  .s-ВРАБОТЕ  { background: var(--accent-dim); color: var(--accent); }
+  .s-ВРАБОТЕ::before { background: var(--accent); }
+  .s-УТОЧНЕНИЕ{ background: var(--yellow-dim); color: var(--yellow); }
+  .s-УТОЧНЕНИЕ::before { background: var(--yellow); }
+  .s-ПЕРЕДАНА { background: var(--cyan-dim); color: var(--cyan); }
+  .s-ПЕРЕДАНА::before { background: var(--cyan); }
+  .s-ИСПОЛНЕНА{ background: var(--green-dim); color: var(--green); }
+  .s-ИСПОЛНЕНА::before { background: var(--green); }
+  .s-ВЫПОЛНЕНА{ background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid var(--green); }
+  .s-ВЫПОЛНЕНА::before { background: var(--green); }
+
+  .wait-ok   { color: var(--text3); font-family: var(--mono); font-size: 12px; }
+  .wait-warn { color: var(--yellow); font-family: var(--mono); font-size: 12px; }
+  .wait-crit { color: var(--red); font-family: var(--mono); font-size: 12px; font-weight: 600; }
+
+  .action-btn {
+    padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 11px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  .action-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* PANELS */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .side-panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    background: var(--surface); border-left: 1px solid var(--border);
+    z-index: 201; display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1); overflow: hidden;
+  }
+  .side-panel.open { transform: translateX(0); }
+  .panel-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-shrink: 0;
+  }
+  .panel-id   { font-family: var(--mono); font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .panel-title{ font-size: 16px; font-weight: 600; }
+  .close-btn {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.12s;
+  }
+  .close-btn:hover { background: var(--surface3); color: var(--text); }
+  .panel-body   { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .panel-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+
+  /* STATUS BTNS */
+  .status-btn { padding: 7px 14px; border-radius: 6px; font-size: 12px; font-family: var(--mono); cursor: pointer; border: 1px solid; transition: all 0.15s; font-weight: 500; }
+  .sb-work    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .sb-work:hover { background: var(--accent); color: #fff; }
+  .sb-clarify { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .sb-clarify:hover { background: var(--yellow); color: #000; }
+  .sb-pass    { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+  .sb-pass:hover { background: var(--cyan); color: #000; }
+  .sb-done    { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .sb-done:hover { background: var(--green); color: #000; }
+  .sb-complete{ background: rgba(34,197,94,0.2); border-color: var(--green); color: var(--green); }
+  .sb-complete:hover { background: var(--green); color: #000; }
+
+  /* DETAIL FIELDS */
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-field { display: flex; flex-direction: column; gap: 3px; }
+  .detail-field.full { grid-column: 1 / -1; }
+  .field-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .field-value { font-size: 13px; color: var(--text); }
+  .field-value.mono { font-family: var(--mono); font-size: 12px; }
+  .field-value.amt  { color: var(--accent); font-family: var(--mono); font-size: 14px; font-weight: 600; }
+
+  /* LOG */
+  .log-item { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .log-item:last-child { border-bottom: none; }
+  .log-time   { font-family: var(--mono); color: var(--text3); white-space: nowrap; font-size: 11px; flex-shrink: 0; }
+  .log-author { color: var(--accent); font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .log-text   { color: var(--text2); }
+
+  /* NEW PANEL TABS */
+  .new-type-tabs { display: flex; gap: 6px; padding: 14px 24px 0; flex-shrink: 0; }
+  .new-tab {
+    padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono); cursor: pointer; transition: all 0.12s;
+  }
+  .new-tab.active.t-open   { background: var(--green-dim);  border-color: var(--green);  color: var(--green); }
+  .new-tab.active.t-top    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .new-tab.active.t-change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .new-tab.active.t-tech   { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+
+  /* FORM */
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .form-label .req { color: var(--accent); margin-left: 2px; }
+  .form-label .opt { color: var(--text3); font-size: 9px; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 13px; outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 90px; }
+  .form-select option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-divider { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin: 18px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .file-drop { border: 1px dashed var(--border2); border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.15s; color: var(--text3); font-size: 12px; }
+  .file-drop:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+  /* Autocomplete */
+  .ac-wrap { position: relative; }
+  .ac-input {
+    width: 100%; padding: 8px 28px 8px 12px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text); font-family: var(--sans); font-size: 13px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .ac-input:focus { border-color: var(--accent); }
+  .ac-input::placeholder { color: var(--text3); }
+  .ac-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--text3); font-size: 14px; cursor: pointer; line-height: 1;
+    display: none; padding: 2px 4px; border-radius: 3px; transition: color 0.12s;
+  }
+  .ac-clear:hover { color: var(--text); }
+  .ac-drop {
+    position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 400;
+    background: var(--surface2); border: 1px solid var(--accent);
+    border-radius: 6px; max-height: 220px; overflow-y: auto;
+    scrollbar-width: none; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .ac-drop::-webkit-scrollbar { display: none; }
+  .ac-opt {
+    padding: 8px 12px; font-size: 13px; color: var(--text); cursor: pointer;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  }
+  .ac-opt:hover, .ac-opt.ac-focused { background: var(--surface3); }
+  .ac-opt:last-child { border-bottom: none; }
+  .ac-opt-sub { font-size: 11px; color: var(--text3); margin-left: auto; font-family: var(--mono); flex-shrink: 0; }
+  .ac-empty { padding: 8px 12px; font-size: 12px; color: var(--text3); font-family: var(--mono); }
+  .ac-note { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+  .ac-match { color: var(--accent); }
+
+  .btn-primary   { padding: 9px 20px; border-radius: 6px; border: none; background: var(--accent); color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary { padding: 9px 20px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-secondary:hover { background: var(--surface3); color: var(--text); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
+    background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 11px 20px; font-size: 13px; color: var(--text); z-index: 500;
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1); white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">ADOPS<span>DESK</span></div>
+  <div class="topbar-actions">
+    <button class="btn-type open"   onclick="openNew('OPEN')">+ Создать кабинет</button>
+    <button class="btn-type top"    onclick="openNew('TOP')">+ Пополнить</button>
+    <button class="btn-type change" onclick="openNew('CHANGE')">+ Изменить</button>
+    <button class="btn-type tech"   onclick="openNew('TECH')">+ Тех. вопрос</button>
+  </div>
+  <div class="topbar-user"><div class="user-dot"></div>Иванова А.С. · менеджер</div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Площадки</div>
+      <div class="sidebar-search">
+        <span style="color:var(--text3);font-size:12px;flex-shrink:0">⌕</span>
+        <input type="text" placeholder="Поиск..." oninput="searchSidebar(this,'platform-list','platform-empty')">
+      </div>
+      <div class="sidebar-item active" onclick="filterBy('platform','all',this)"><span class="icon">◈</span>Все площадки<span class="sidebar-count" id="sc-all">50</span></div>
+      <div class="sidebar-list" id="platform-list">
+        <div class="sidebar-item" onclick="filterBy('platform','Яндекс.директ',this)"><span class="icon">◻</span>Яндекс.директ<span class="sidebar-count">20</span></div>
+        <div class="sidebar-item" onclick="filterBy('platform','Target.vk.ru',this)"><span class="icon">◻</span>Target.vk.ru<span class="sidebar-count">20</span></div>
+        <div class="sidebar-item" onclick="filterBy('platform','Avito_Self_CPC',this)"><span class="icon">◻</span>Avito_Self_CPC<span class="sidebar-count">10</span></div>
+      </div>
+      <div class="sidebar-empty" id="platform-empty">Не найдено</div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Агентства</div>
+      <div class="sidebar-search">
+        <span style="color:var(--text3);font-size:12px;flex-shrink:0">⌕</span>
+        <input type="text" placeholder="Название агентства..." oninput="searchSidebar(this,'agency-list','agency-empty')">
+      </div>
+      <div class="sidebar-list" id="agency-list">
+        <div class="sidebar-item active" onclick="filterBy('agency','all',this)"><span class="icon">◈</span>Все агентства</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ФЕРСТ ДАТА',this)"><span class="icon">◻</span>ФЕРСТ ДАТА</div>
+        <div class="sidebar-item" onclick="filterBy('agency','АЙСИСТЕМС',this)"><span class="icon">◻</span>АЙСИСТЕМС</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ВИНОУ',this)"><span class="icon">◻</span>ВИНОУ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','9 ЯРДОВ',this)"><span class="icon">◻</span>9 ЯРДОВ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','СОШИАЛ КРАФТ',this)"><span class="icon">◻</span>СОШИАЛ КРАФТ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','АИР МЕДИА-АКТИВ',this)"><span class="icon">◻</span>АИР МЕДИА-АКТИВ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ЮНИОН-МЕДИА-СЕРВИС',this)"><span class="icon">◻</span>ЮНИОН-МЕДИА-СЕРВИС</div>
+        <div class="sidebar-item" onclick="filterBy('agency','МЕДИАКОНСАЛТ',this)"><span class="icon">◻</span>МЕДИАКОНСАЛТ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',this)"><span class="icon">◻</span>СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','СПАРТА',this)"><span class="icon">◻</span>СПАРТА</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ТРИО ДИДЖИТАЛ',this)"><span class="icon">◻</span>ТРИО ДИДЖИТАЛ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','НАСТИ',this)"><span class="icon">◻</span>НАСТИ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','РЕАКТОР',this)"><span class="icon">◻</span>РЕАКТОР</div>
+        <div class="sidebar-item" onclick="filterBy('agency','РИЧ НИНДЗЯ',this)"><span class="icon">◻</span>РИЧ НИНДЗЯ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','МЕДИА-ДОКТОР',this)"><span class="icon">◻</span>МЕДИА-ДОКТОР</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ХИТ МЕДИА',this)"><span class="icon">◻</span>ХИТ МЕДИА</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ФРЭШ МАЙНД',this)"><span class="icon">◻</span>ФРЭШ МАЙНД</div>
+        <div class="sidebar-item" onclick="filterBy('agency','ПОМОГАТЕЛЬ.РУ',this)"><span class="icon">◻</span>ПОМОГАТЕЛЬ.РУ</div>
+        <div class="sidebar-item" onclick="filterBy('agency','КЛЕВЕР',this)"><span class="icon">◻</span>КЛЕВЕР</div>
+      </div>
+      <div class="sidebar-empty" id="agency-empty">Не найдено</div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Документы</div>
+      <div class="sidebar-item" onclick="showToast('Запрос счёта — в разработке')"><span class="icon">◻</span>Запросить счёт</div>
+      <div class="sidebar-item" onclick="showToast('Подготовка актов — в разработке')"><span class="icon">◻</span>Подготовить акты</div>
+      <div class="sidebar-item" onclick="showToast('Сверка документов — в разработке')"><span class="icon">◻</span>Сверка документов</div>
+      <div class="sidebar-item" onclick="showToast('Шаблоны писем — в разработке')"><span class="icon">◻</span>Шаблоны писем</div>
+      <div class="sidebar-item" onclick="showToast('Договоры — в разработке')"><span class="icon">◻</span>Договоры</div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Создать заявку</div>
+      <div class="sidebar-type-btn" onclick="openNew('OPEN')"><div class="dot" style="background:var(--green)"></div>Создать кабинет</div>
+      <div class="sidebar-type-btn" onclick="openNew('TOP')"><div class="dot" style="background:var(--accent)"></div>Пополнить</div>
+      <div class="sidebar-type-btn" onclick="openNew('CHANGE')"><div class="dot" style="background:var(--yellow)"></div>Изменить</div>
+      <div class="sidebar-type-btn" onclick="openNew('TECH')"><div class="dot" style="background:var(--purple)"></div>Тех. вопрос</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-row">
+      <div class="summary-card c-new" onclick="cardFilter('НОВАЯ',this)">
+        <div class="label">Новые</div><div class="value" id="cnt-new">—</div><div class="sub">ждут назначения</div>
+      </div>
+      <div class="summary-card c-work" onclick="cardFilter('В РАБОТЕ',this)">
+        <div class="label">В работе</div><div class="value" id="cnt-work">—</div><div class="sub">у внутреннего отдела</div>
+      </div>
+      <div class="summary-card c-clarify" onclick="cardFilter('УТОЧНЕНИЕ',this)">
+        <div class="label">Уточнение</div><div class="value" id="cnt-clarify">—</div><div class="sub">требуют действия</div>
+      </div>
+      <div class="summary-card c-done" onclick="cardFilter('ИСПОЛНЕНА',this)">
+        <div class="label">Исполнено</div><div class="value" id="cnt-done">—</div><div class="sub">ждут подтверждения</div>
+      </div>
+      <div class="summary-card c-wait" onclick="cardFilter('overdue',this)">
+        <div class="label">Просрочено</div><div class="value" id="cnt-overdue">—</div><div class="sub">&gt;24 ч без движения</div>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filters-row">
+      <button class="filter-chip f-all active" onclick="chipFilter('all',this)">Все</button>
+      <button class="filter-chip f-new"      onclick="chipFilter('НОВАЯ',this)">Новая</button>
+      <button class="filter-chip f-work"     onclick="chipFilter('В РАБОТЕ',this)">В работе</button>
+      <button class="filter-chip f-clarify"  onclick="chipFilter('УТОЧНЕНИЕ',this)">Уточнение</button>
+      <button class="filter-chip f-passed"   onclick="chipFilter('ПЕРЕДАНА',this)">Передана</button>
+      <button class="filter-chip f-done"     onclick="chipFilter('ИСПОЛНЕНА',this)">Исполнена</button>
+      <button class="filter-chip f-complete" onclick="chipFilter('ВЫПОЛНЕНА',this)">Выполнена</button>
+      <div class="filters-spacer"></div>
+      <input class="search-box" type="date" style="width:145px;color-scheme:dark" oninput="dateFilter(this.value)" title="Фильтр по дате">
+      <input class="search-box" type="text" style="width:200px" placeholder="Поиск по аккаунту, РА..." oninput="renderTable()">
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>№</th><th>Дата</th><th>Площадка</th><th>РА</th><th>Тип</th>
+            <th>Аккаунт / Кабинет</th><th>Клиент (ЮЛ)</th><th>Статус</th><th>Ожидание</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- DETAIL OVERLAY + PANEL -->
+<div class="overlay" id="detail-overlay" onclick="closeDetail()"></div>
+<div class="side-panel" id="detail-panel" style="width:520px">
+  <div class="panel-header">
+    <div><div class="panel-id" id="d-id">—</div><div class="panel-title" id="d-title">—</div></div>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </div>
+  <div class="panel-body" id="d-body"></div>
+  <div class="panel-footer" id="d-footer"></div>
+</div>
+
+<!-- NEW OVERLAY + PANEL -->
+<div class="overlay" id="new-overlay" onclick="closeNew()"></div>
+<div class="side-panel" id="new-panel" style="width:560px">
+  <div class="panel-header">
+    <div class="panel-title" id="new-title">Новая заявка</div>
+    <button class="close-btn" onclick="closeNew()">×</button>
+  </div>
+  <div class="new-type-tabs">
+    <button class="new-tab t-open"   id="ntab-OPEN"   onclick="switchType('OPEN')">Создать</button>
+    <button class="new-tab t-top"    id="ntab-TOP"    onclick="switchType('TOP')">Пополнить</button>
+    <button class="new-tab t-change" id="ntab-CHANGE" onclick="switchType('CHANGE')">Изменить</button>
+    <button class="new-tab t-tech"   id="ntab-TECH"   onclick="switchType('TECH')">Тех. вопрос</button>
+  </div>
+  <div class="panel-body" id="new-body"></div>
+  <div class="panel-footer">
+    <button class="btn-primary" onclick="submitNew()">Создать заявку</button>
+    <button class="btn-secondary" onclick="closeNew()">Отмена</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const AGENCIES = ['ФЕРСТ ДАТА','АЙСИСТЕМС','ВИНОУ','9 ЯРДОВ','СОШИАЛ КРАФТ','АИР МЕДИА-АКТИВ','ЮНИОН-МЕДИА-СЕРВИС','МЕДИАКОНСАЛТ','СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ'];
+const PLATFORMS = ['Яндекс.директ','Target.vk.ru','Avito_Self_CPC'];
+
+
+
+
+let rows = [
+  {id:'AO-001',date:'07.04.26',iso:'2026-04-07',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'TOP',     account:'synergeticfd // ФД // RP //',         client:'ООО "Синергетик"',       status:'НОВАЯ',    wait:2,   amount:180000},
+  {id:'AO-002',date:'07.04.26',iso:'2026-04-07',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'TOP',     account:'aquamaris-fd // ФД // RP //',         client:'ООО "Аквамарис"',        status:'В РАБОТЕ', wait:5,   amount:95000},
+  {id:'AO-003',date:'07.04.26',iso:'2026-04-07',platform:'Яндекс.директ',  agency:'СОШИАЛ КРАФТ',     type:'TOP',     account:'miranda.media.sc1 // RP // SC //',    client:'ООО "Миранда Медиа"',    status:'ПЕРЕДАНА', wait:14,  amount:250000},
+  {id:'AO-004',date:'08.04.26',iso:'2026-04-08',platform:'Яндекс.директ',  agency:'ЮНИОН-МЕДИА-СЕРВИС',type:'TOP',    account:'KAMA-Y1 // RP // US //',             client:'АО "Кама Тайрс"',        status:'УТОЧНЕНИЕ',wait:9,   amount:320000},
+  {id:'AO-005',date:'08.04.26',iso:'2026-04-08',platform:'Яндекс.директ',  agency:'ЮНИОН-МЕДИА-СЕРВИС',type:'OPEN',   account:'NL-International1 // RP // US //',   client:'ООО "НЛ Интернэшнл"',   status:'ИСПОЛНЕНА',wait:3,   amount:null},
+  {id:'AO-006',date:'08.04.26',iso:'2026-04-08',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'TOP',     account:'boggi-fd // ФД // RP //',             client:'ООО "Богги"',            status:'В РАБОТЕ', wait:7,   amount:410000},
+  {id:'AO-007',date:'08.04.26',iso:'2026-04-08',platform:'Яндекс.директ',  agency:'РИЧ НИНДЗЯ',       type:'TOP',     account:'AVON-Y2 // РН // RP //',             client:'АО "Эйвон"',             status:'ВЫПОЛНЕНА',wait:0,   amount:150000},
+  {id:'AO-008',date:'08.04.26',iso:'2026-04-08',platform:'Яндекс.директ',  agency:'НАСТИ',            type:'TOP',     account:'Hipp-2-nst // Насти // RP //',       client:'ООО "Хипп"',             status:'НОВАЯ',    wait:1,   amount:75000},
+  {id:'AO-009',date:'09.04.26',iso:'2026-04-09',platform:'Яндекс.директ',  agency:'СПАРТА',           type:'TOP',     account:'CCK-Федеральная-Y // RP // Спарта //',client:'ООО "ССК"',             status:'ПЕРЕДАНА', wait:28,  amount:500000},
+  {id:'AO-010',date:'09.04.26',iso:'2026-04-09',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'CHANGE',  account:'beeline-fd // ФД // RP //',          client:'ПАО "Билайн"',           status:'УТОЧНЕНИЕ',wait:33,  amount:null},
+  {id:'AO-011',date:'09.04.26',iso:'2026-04-09',platform:'Яндекс.директ',  agency:'АЙСИСТЕМС',        type:'TOP',     account:'Dom56-bp // RP // АС //',            client:'ООО "Дом 56"',           status:'НОВАЯ',    wait:0,   amount:120000},
+  {id:'AO-012',date:'09.04.26',iso:'2026-04-09',platform:'Яндекс.директ',  agency:'МЕДИА-ДОКТОР',     type:'TOP',     account:'Крафт // RP // US //',               client:'ООО "Крафт"',            status:'В РАБОТЕ', wait:6,   amount:88000},
+  {id:'AO-013',date:'09.04.26',iso:'2026-04-09',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'OPEN',    account:'rivegauche-fd // ФД // RP //',       client:'ООО "Риве Гош"',         status:'ИСПОЛНЕНА',wait:2,   amount:null},
+  {id:'AO-014',date:'10.04.26',iso:'2026-04-10',platform:'Яндекс.директ',  agency:'РЕАКТОР',          type:'TOP',     account:'ROX-Poisk-Y // RP // US //',         client:'ООО "Рокс"',             status:'НОВАЯ',    wait:1,   amount:200000},
+  {id:'AO-015',date:'10.04.26',iso:'2026-04-10',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'TOP',     account:'hondrofen-fd // ФД // RP //',        client:'ООО "Хондрофен"',        status:'В РАБОТЕ', wait:4,   amount:65000},
+  {id:'AO-016',date:'10.04.26',iso:'2026-04-10',platform:'Яндекс.директ',  agency:'ФРЭШ МАЙНД',       type:'OPEN+TOP',account:'Nutrilactpro-Y // RP // US //',     client:'ООО "Нутрилакт"',        status:'НОВАЯ',    wait:0,   amount:140000},
+  {id:'AO-017',date:'10.04.26',iso:'2026-04-10',platform:'Яндекс.директ',  agency:'ПОМОГАТЕЛЬ.РУ',    type:'TOP',     account:'mg-pomogatel-msk // Помогатель.ру // RP //',client:'ООО "Помогатель"',status:'ПЕРЕДАНА', wait:11,  amount:55000},
+  {id:'AO-018',date:'10.04.26',iso:'2026-04-10',platform:'Яндекс.директ',  agency:'АЙСИСТЕМС',        type:'TOP',     account:'Kosmo-bp // RP // АС //',            client:'ООО "ЖК Космо"',         status:'ИСПОЛНЕНА',wait:1,   amount:175000},
+  {id:'AO-019',date:'11.04.26',iso:'2026-04-11',platform:'Яндекс.директ',  agency:'ФЕРСТ ДАТА',       type:'TOP',     account:'sbercity-fd // ФД // RP //',         client:'ООО "СберСити"',         status:'НОВАЯ',    wait:0,   amount:310000},
+  {id:'AO-020',date:'11.04.26',iso:'2026-04-11',platform:'Яндекс.директ',  agency:'КЛЕВЕР',           type:'TOP',     account:'FrauMarta-klvr',                     client:'ООО "Фрау Марта"',       status:'В РАБОТЕ', wait:3,   amount:90000},
+  {id:'AO-021',date:'07.04.26',iso:'2026-04-07',platform:'Target.vk.ru',   agency:'ВИНОУ',            type:'TOP',     account:'#012-VKR // ВН_Й ЖУРНАЛ',            client:'ООО "Виноу"',            status:'НОВАЯ',    wait:2,   amount:200000},
+  {id:'AO-022',date:'07.04.26',iso:'2026-04-07',platform:'Target.vk.ru',   agency:'ВИНОУ',            type:'TOP',     account:'#012-VKR // ВН_МегаФон',             client:'ПАО "МегаФон"',          status:'В РАБОТЕ', wait:8,   amount:380000},
+  {id:'AO-023',date:'08.04.26',iso:'2026-04-08',platform:'Target.vk.ru',   agency:'АЙСИСТЕМС',        type:'TOP',     account:'#012-VKR // ЖК Малевич',             client:'ООО "Малевич"',          status:'ПЕРЕДАНА', wait:16,  amount:450000},
+  {id:'AO-024',date:'08.04.26',iso:'2026-04-08',platform:'Target.vk.ru',   agency:'АЙСИСТЕМС',        type:'TOP',     account:'#012-VKR // ЖК Модум',               client:'ООО "Модум"',            status:'УТОЧНЕНИЕ',wait:9,   amount:280000},
+  {id:'AO-025',date:'08.04.26',iso:'2026-04-08',platform:'Target.vk.ru',   agency:'9 ЯРДОВ',          type:'TOP',     account:'#012-VKR // АВИЛОН GAC_9Я',          client:'АО "Авилон"',            status:'НОВАЯ',    wait:1,   amount:150000},
+  {id:'AO-026',date:'08.04.26',iso:'2026-04-08',platform:'Target.vk.ru',   agency:'9 ЯРДОВ',          type:'TOP',     account:'#012-VKR // Авилон JETOUR_9Я',       client:'АО "Авилон"',            status:'В РАБОТЕ', wait:5,   amount:175000},
+  {id:'AO-027',date:'09.04.26',iso:'2026-04-09',platform:'Target.vk.ru',   agency:'АИР МЕДИА-АКТИВ',  type:'TOP',     account:'#012-VKR // SK Soglasie',            client:'ООО "СК Согласие"',      status:'ИСПОЛНЕНА',wait:2,   amount:95000},
+  {id:'AO-028',date:'09.04.26',iso:'2026-04-09',platform:'Target.vk.ru',   agency:'АИР МЕДИА-АКТИВ',  type:'TOP',     account:'#012-VKR // БалтАвтоТрейд',          client:'ООО "БалтАвто"',         status:'ВЫПОЛНЕНА',wait:0,   amount:120000},
+  {id:'AO-029',date:'09.04.26',iso:'2026-04-09',platform:'Target.vk.ru',   agency:'СОШИАЛ КРАФТ',     type:'TOP',     account:'#012-VKR // Т2 Черноземье-SC',       client:'ООО "Т2"',               status:'ПЕРЕДАНА', wait:26,  amount:310000},
+  {id:'AO-030',date:'09.04.26',iso:'2026-04-09',platform:'Target.vk.ru',   agency:'МЕДИАКОНСАЛТ',     type:'OPEN',    account:'#012-VKR // Атмосфера кино',         client:'ООО "Атмосфера"',        status:'НОВАЯ',    wait:0,   amount:null},
+  {id:'AO-031',date:'09.04.26',iso:'2026-04-09',platform:'Target.vk.ru',   agency:'ТРИО ДИДЖИТАЛ',    type:'TOP',     account:'#012-VKR // AKVION',                 client:'ООО "Аквион"',           status:'В РАБОТЕ', wait:7,   amount:85000},
+  {id:'AO-032',date:'10.04.26',iso:'2026-04-10',platform:'Target.vk.ru',   agency:'ЮНИОН-МЕДИА-СЕРВИС',type:'TOP',   account:'#012-VKR // Viatti',                 client:'ООО "Виатти"',           status:'НОВАЯ',    wait:1,   amount:220000},
+  {id:'AO-033',date:'10.04.26',iso:'2026-04-10',platform:'Target.vk.ru',   agency:'СПАРТА',           type:'TOP',     account:'#012-VKR // Деринат',                client:'ООО "Деринат"',          status:'УТОЧНЕНИЕ',wait:31,  amount:145000},
+  {id:'AO-034',date:'10.04.26',iso:'2026-04-10',platform:'Target.vk.ru',   agency:'АИР МЕДИА-АКТИВ',  type:'CHANGE',  account:'#012-VKR // БИЗНЕС КАР М',          client:'ООО "Бизнес Кар"',       status:'В РАБОТЕ', wait:4,   amount:null},
+  {id:'AO-035',date:'10.04.26',iso:'2026-04-10',platform:'Target.vk.ru',   agency:'ВИНОУ',            type:'TOP',     account:'#012-VKR // ВН_Hoff',               client:'ООО "Хофф"',             status:'НОВАЯ',    wait:0,   amount:500000},
+  {id:'AO-036',date:'10.04.26',iso:'2026-04-10',platform:'Target.vk.ru',   agency:'НАСТИ',            type:'TOP',     account:'#012-VKR // Hipp-2-nst',             client:'ООО "Хипп"',             status:'ИСПОЛНЕНА',wait:3,   amount:60000},
+  {id:'AO-037',date:'11.04.26',iso:'2026-04-11',platform:'Target.vk.ru',   agency:'9 ЯРДОВ',          type:'TOP',     account:'#012-VKR // Авилон TANK_9Я',         client:'АО "Авилон"',            status:'НОВАЯ',    wait:0,   amount:190000},
+  {id:'AO-038',date:'11.04.26',iso:'2026-04-11',platform:'Target.vk.ru',   agency:'АЙСИСТЕМС',        type:'TOP',     account:'#012-VKR // ЖК HIGH LIFE',           client:'ООО "Хай Лайф"',         status:'В РАБОТЕ', wait:2,   amount:340000},
+  {id:'AO-039',date:'11.04.26',iso:'2026-04-11',platform:'Target.vk.ru',   agency:'МЕДИАКОНСАЛТ',     type:'TOP',     account:'#012-VKR // НМГ Кинопрокат',         client:'ООО "НМГ"',              status:'ПЕРЕДАНА', wait:12,  amount:280000},
+  {id:'AO-040',date:'11.04.26',iso:'2026-04-11',platform:'Target.vk.ru',   agency:'АИР МЕДИА-АКТИВ',  type:'TOP',     account:'#012-VKR // ТЦ Кунцево Лимитед',    client:'ООО "Кунцево"',          status:'НОВАЯ',    wait:1,   amount:155000},
+  {id:'AO-041',date:'07.04.26',iso:'2026-04-07',platform:'Avito_Self_CPC', agency:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',type:'TOP', account:'100 Билетов / СТ',                  client:'ООО "100 Билетов"',      status:'НОВАЯ',    wait:3,   amount:45000},
+  {id:'AO-042',date:'07.04.26',iso:'2026-04-07',platform:'Avito_Self_CPC', agency:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',type:'TOP', account:'Архыз / ВП Alean / СТ',             client:'ООО "Алеан"',            status:'В РАБОТЕ', wait:6,   amount:70000},
+  {id:'AO-043',date:'08.04.26',iso:'2026-04-08',platform:'Avito_Self_CPC', agency:'9 ЯРДОВ',          type:'TOP',     account:'Avito Основа ЖК Малиново',          client:'ООО "Основа"',           status:'ПЕРЕДАНА', wait:18,  amount:110000},
+  {id:'AO-044',date:'08.04.26',iso:'2026-04-08',platform:'Avito_Self_CPC', agency:'9 ЯРДОВ',          type:'TOP',     account:'Avito Основа ЖК Сенсация',          client:'ООО "Основа"',           status:'УТОЧНЕНИЕ',wait:29,  amount:130000},
+  {id:'AO-045',date:'09.04.26',iso:'2026-04-09',platform:'Avito_Self_CPC', agency:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',type:'OPEN', account:'Море тут / ВП Море тут / СТ',      client:'ООО "Море Тут"',         status:'НОВАЯ',    wait:0,   amount:null},
+  {id:'AO-046',date:'09.04.26',iso:'2026-04-09',platform:'Avito_Self_CPC', agency:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',type:'TOP', account:'Морелло / ВП Морелло / СТ',         client:'ООО "Морелло"',          status:'В РАБОТЕ', wait:5,   amount:85000},
+  {id:'AO-047',date:'09.04.26',iso:'2026-04-09',platform:'Avito_Self_CPC', agency:'РЕАКТОР',          type:'TOP',     account:'ИМПОРТНО-ЭКСПОРТНАЯ АВТОМОБИЛЬНАЯ КОМПАНИЯ ХУАЮНЬ',client:'ООО "Хуаюнь"',status:'ИСПОЛНЕНА',wait:2,amount:200000},
+  {id:'AO-048',date:'10.04.26',iso:'2026-04-10',platform:'Avito_Self_CPC', agency:'ХИТ МЕДИА',        type:'TOP',     account:'Yamaguchi',                          client:'ООО "Ямагути"',          status:'НОВАЯ',    wait:1,   amount:55000},
+  {id:'AO-049',date:'10.04.26',iso:'2026-04-10',platform:'Avito_Self_CPC', agency:'МЕДИАКОНСАЛТ',     type:'OPEN+TOP',account:'Атмосфера кино_27.10',              client:'ООО "Атмосфера"',        status:'В РАБОТЕ', wait:4,   amount:95000},
+  {id:'AO-050',date:'11.04.26',iso:'2026-04-11',platform:'Avito_Self_CPC', agency:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',type:'TOP', account:'ЖК Лесная сказка / ВП Лесная сказка / СТ',client:'ООО "Лесная сказка"',status:'ВЫПОЛНЕНА',wait:0,amount:120000},
+];
+
+let selectedId = null;
+let filterStatus = 'all';  // chip/card filter
+let filterPlatform = 'all';
+let filterAgency = 'all';
+let filterDate = '';
+let newType = 'OPEN';
+let nextId = 16;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function wc(h){ return h===0?'wait-ok':h<8?'wait-ok':h<24?'wait-warn':'wait-crit'; }
+function wl(h){ return h===0?'&lt;1 ч':h+' ч'; }
+function typeCls(t){ return 'type-'+(t==='OPEN+TOP'?'OPENTOP':t); }
+function statusKey(s){ return 's-'+s.replace(/\s/g,''); }
+function fmt(n){ return n?n.toLocaleString('ru-RU')+' ₽':'—'; }
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function renderTable(){
+  let data = rows;
+  if(filterStatus==='overdue')    data = data.filter(r=>r.wait>24&&r.status!=='ВЫПОЛНЕНА');
+  else if(filterStatus!=='all')   data = data.filter(r=>r.status===filterStatus);
+  if(filterPlatform!=='all')      data = data.filter(r=>r.platform.includes(filterPlatform));
+  if(filterAgency!=='all')        data = data.filter(r=>r.agency===filterAgency);
+  if(filterDate)                  data = data.filter(r=>r.iso===filterDate);
+  const q = document.querySelector('input[type=text].search-box')?.value?.toLowerCase();
+  if(q) data = data.filter(r=>(r.account+r.agency+r.client).toLowerCase().includes(q));
+
+  document.getElementById('table-body').innerHTML = data.map(r=>`
+    <tr onclick="openDetail('${r.id}')" class="${selectedId===r.id?'selected':''}">
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${r.id}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap">${r.date}</td>
+      <td style="white-space:nowrap">${r.platform}</td>
+      <td style="color:var(--text2)">${r.agency}</td>
+      <td><span class="type-badge ${typeCls(r.type)}">${r.type}</span></td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.account}">${r.account}</td>
+      <td style="color:var(--text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.client}">${r.client}</td>
+      <td><span class="status-badge ${statusKey(r.status)}">${r.status}</span></td>
+      <td class="${wc(r.wait)}">${wl(r.wait)}</td>
+      <td><button class="action-btn" onclick="event.stopPropagation();openDetail('${r.id}')">Открыть →</button></td>
+    </tr>`).join('');
+
+  updateCounters();
+}
+
+function updateCounters(){
+  document.getElementById('cnt-new').textContent     = rows.filter(r=>r.status==='НОВАЯ').length;
+  document.getElementById('cnt-work').textContent    = rows.filter(r=>r.status==='В РАБОТЕ'||r.status==='УТОЧНЕНИЕ').length;
+  document.getElementById('cnt-clarify').textContent = rows.filter(r=>r.status==='УТОЧНЕНИЕ').length;
+  document.getElementById('cnt-done').textContent    = rows.filter(r=>r.status==='ИСПОЛНЕНА').length;
+  document.getElementById('cnt-overdue').textContent = rows.filter(r=>r.wait>24&&r.status!=='ВЫПОЛНЕНА').length;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function chipFilter(status, el){
+  filterStatus = status;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.summary-card').forEach(c=>c.classList.remove('card-active'));
+  renderTable();
+}
+
+function cardFilter(status, el){
+  filterStatus = filterStatus===status?'all':status;
+  document.querySelectorAll('.summary-card').forEach(c=>c.classList.remove('card-active'));
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  if(filterStatus!=='all'){
+    el.classList.add('card-active');
+  } else {
+    document.querySelector('.f-all').classList.add('active');
+  }
+  renderTable();
+}
+
+function filterBy(type, val, el){
+  el.closest('.sidebar-section').querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  if(type==='platform') filterPlatform=val;
+  if(type==='agency')   filterAgency=val;
+  renderTable();
+}
+
+function dateFilter(v){ filterDate=v; renderTable(); }
+
+// ── DETAIL PANEL ─────────────────────────────────────────────────────────────
+function openDetail(id){
+  selectedId = id;
+  const r = rows.find(x=>x.id===id);
+  if(!r) return;
+
+  document.getElementById('d-id').textContent    = r.id + ' · ' + r.date;
+  document.getElementById('d-title').textContent = r.account;
+
+  document.getElementById('d-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">Основное</div>
+      <div class="detail-grid">
+        <div class="detail-field">
+          <div class="field-label">Тип</div>
+          <div class="field-value"><span class="type-badge ${typeCls(r.type)}">${r.type}</span></div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Статус</div>
+          <div class="field-value"><span class="status-badge ${statusKey(r.status)}">${r.status}</span></div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Площадка</div>
+          <div class="field-value">${r.platform}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Агентство</div>
+          <div class="field-value">${r.agency}</div>
+        </div>
+        <div class="detail-field full">
+          <div class="field-label">Аккаунт / Кабинет</div>
+          <div class="field-value mono">${r.account}</div>
+        </div>
+        <div class="detail-field full">
+          <div class="field-label">Клиент (юр. лицо)</div>
+          <div class="field-value">${r.client}</div>
+        </div>
+        ${r.amount?`
+        <div class="detail-field full">
+          <div class="field-label">Сумма пополнения (до НДС)</div>
+          <div class="field-value amt">${fmt(r.amount)}</div>
+        </div>`:''}
+        <div class="detail-field">
+          <div class="field-label">ИНН рекламодателя</div>
+          <div class="field-value mono">77${String(Math.abs(r.id.charCodeAt(3)*1234567)).slice(0,8)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Номер ИД</div>
+          <div class="field-value mono">ИД-${1000+parseInt(r.id.split('-')[1])}/2024</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Ожидание</div>
+          <div class="field-value ${wc(r.wait)}">${wl(r.wait)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Создана</div>
+          <div class="field-value mono" style="color:var(--text3)">${r.date}</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">История изменений</div>
+      ${buildLog(r)}
+    </div>`;
+
+  document.getElementById('d-footer').innerHTML = buildStatusBtns(r);
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+  renderTable();
+}
+
+function buildLog(r){
+  const s = r.status;
+  const entries = [`<div class="log-item"><span class="log-time">${r.date} 09:14</span><span class="log-author">Система</span><span class="log-text">Заявка создана · статус НОВАЯ</span></div>`];
+  if(s!=='НОВАЯ') entries.push(`<div class="log-item"><span class="log-time">${r.date} 10:32</span><span class="log-author">Смирнов К.Р.</span><span class="log-text">Статус → <b>В РАБОТЕ</b></span></div>`);
+  if(s==='УТОЧНЕНИЕ') entries.push(`<div class="log-item"><span class="log-time">${r.date} 11:50</span><span class="log-author">Иванова А.С.</span><span class="log-text">Статус → <b>УТОЧНЕНИЕ</b> · запрос отправлен клиенту</span></div>`);
+  if(s==='ПЕРЕДАНА') entries.push(`<div class="log-item"><span class="log-time">${r.date} 12:05</span><span class="log-author">Смирнов К.Р.</span><span class="log-text">Статус → <b>ПЕРЕДАНА</b> · запрос площадке отправлен</span></div>`);
+  if(s==='ИСПОЛНЕНА'||s==='ВЫПОЛНЕНА') entries.push(`<div class="log-item"><span class="log-time">${r.date} 14:22</span><span class="log-author">Смирнов К.Р.</span><span class="log-text">Статус → <b>ИСПОЛНЕНА</b> · ответ от площадки получен</span></div>`);
+  if(s==='ВЫПОЛНЕНА') entries.push(`<div class="log-item"><span class="log-time">${r.date} 15:10</span><span class="log-author">Иванова А.С.</span><span class="log-text">Статус → <b>ВЫПОЛНЕНА</b> · клиент уведомлён</span></div>`);
+  return entries.join('');
+}
+
+function buildStatusBtns(r){
+  const s = r.status;
+  let b = '';
+  if(s==='НОВАЯ')                     b+=`<button class="status-btn sb-work" onclick="setStatus('${r.id}','В РАБОТЕ')">→ В работе</button>`;
+  if(s==='НОВАЯ'||s==='В РАБОТЕ')     b+=`<button class="status-btn sb-clarify" onclick="setStatus('${r.id}','УТОЧНЕНИЕ')">↔ Уточнение</button>`;
+  if(s==='В РАБОТЕ'||s==='УТОЧНЕНИЕ') b+=`<button class="status-btn sb-pass" onclick="setStatus('${r.id}','ПЕРЕДАНА')">→ Передана</button>`;
+  if(s==='УТОЧНЕНИЕ')                 b+=`<button class="status-btn sb-work" onclick="setStatus('${r.id}','В РАБОТЕ')">↩ В работу</button>`;
+  if(s==='ПЕРЕДАНА'||s==='В РАБОТЕ')  b+=`<button class="status-btn sb-done" onclick="setStatus('${r.id}','ИСПОЛНЕНА')">✓ Исполнена</button>`;
+  if(s==='ИСПОЛНЕНА')                 b+=`<button class="status-btn sb-complete" onclick="setStatus('${r.id}','ВЫПОЛНЕНА')">✓✓ Выполнена</button>`;
+  return b;
+}
+
+function setStatus(id, s){
+  const r = rows.find(x=>x.id===id);
+  if(!r) return;
+  const old = r.status;
+  r.status = s;
+  if(s==='ВЫПОЛНЕНА'||s==='ИСПОЛНЕНА') r.wait=0;
+  showToast(`${id}: ${old} → ${s}`,'success');
+  openDetail(id);
+}
+
+function closeDetail(){
+  selectedId=null;
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+  renderTable();
+}
+
+// ── NEW PANEL ─────────────────────────────────────────────────────────────────
+const TYPE_LABELS = {OPEN:'Создать кабинет',TOP:'Пополнить кабинет',CHANGE:'Изменить данные',TECH:'Технический вопрос'};
+
+function openNew(type){
+  newType = type;
+  document.getElementById('new-overlay').classList.add('open');
+  document.getElementById('new-panel').classList.add('open');
+  switchType(type);
+}
+function closeNew(){
+  document.getElementById('new-overlay').classList.remove('open');
+  document.getElementById('new-panel').classList.remove('open');
+}
+
+function switchType(type){
+  newType = type;
+  document.getElementById('new-title').textContent = TYPE_LABELS[type];
+  ['OPEN','TOP','CHANGE','TECH'].forEach(t=>{
+    document.getElementById('ntab-'+t).classList.toggle('active',t===type);
+  });
+  document.getElementById('new-body').innerHTML = buildForm(type);
+}
+
+// Полный справочник кабинетов с площадками
+const CABINETS_FULL = {
+  'ФЕРСТ ДАТА': [
+    {name:'synergeticfd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'aquamaris-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'boggi-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'beeline-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'rivegauche-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'hondrofen-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'sbercity-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'kuper-fd1 // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'ecco-fd // ФД // RP //', platform:'Яндекс.директ'},
+    {name:'pecom-fd // ФД // RP //', platform:'Яндекс.директ'},
+  ],
+  'СОШИАЛ КРАФТ': [
+    {name:'miranda.media.sc1 // RP // SC //', platform:'Яндекс.директ'},
+    {name:'#012-VKR // Т2 Черноземье-SC', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Т2 БиДВ-sc', platform:'Target.vk.ru'},
+    {name:'Miranda//SC', platform:'Avito_Self_CPC'},
+  ],
+  'ЮНИОН-МЕДИА-СЕРВИС': [
+    {name:'KAMA-Y1 // RP // US //', platform:'Яндекс.директ'},
+    {name:'NL-International1 // RP // US //', platform:'Яндекс.директ'},
+    {name:'Dr.Reddys-Y // RP // US //', platform:'Яндекс.директ'},
+    {name:'Vitabiotics // RP // US //', platform:'Яндекс.директ'},
+    {name:'#012-VKR // Viatti', platform:'Target.vk.ru'},
+    {name:'#012-VKR // KAMA TYRES', platform:'Target.vk.ru'},
+    {name:'#012-VKR // NL International', platform:'Target.vk.ru'},
+  ],
+  'РИЧ НИНДЗЯ': [
+    {name:'AVON-Y2 // РН // RP //', platform:'Яндекс.директ'},
+  ],
+  'НАСТИ': [
+    {name:'Hipp-2-nst // Насти // RP //', platform:'Яндекс.директ'},
+    {name:'#012-VKR // Hipp-2-nst', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Кафедра-nst', platform:'Target.vk.ru'},
+  ],
+  'СПАРТА': [
+    {name:'CCK-Федеральная-Y // RP // Спарта //', platform:'Яндекс.директ'},
+    {name:'#012-VKR // Деринат', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Эмотоцин', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ССК НОВОРОССИЙСК', platform:'Target.vk.ru'},
+  ],
+  'АЙСИСТЕМС': [
+    {name:'Dom56-bp // RP // АС //', platform:'Яндекс.директ'},
+    {name:'Kosmo-bp // RP // АС //', platform:'Яндекс.директ'},
+    {name:'Monblan-bp // RP // АС //', platform:'Яндекс.директ'},
+    {name:'Admiral-bp // RP // АС //', platform:'Яндекс.директ'},
+    {name:'#012-VKR // ЖК Малевич', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ЖК Модум', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ЖК HIGH LIFE', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ЖК Героев', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ЖК Легенда на Охте', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ЖК Станиславский', platform:'Target.vk.ru'},
+  ],
+  'МЕДИА-ДОКТОР': [
+    {name:'Крафт // RP // US //', platform:'Яндекс.директ'},
+    {name:'Миксит-Y // RP // US //', platform:'Яндекс.директ'},
+  ],
+  'РЕАКТОР': [
+    {name:'ROX-Poisk-Y // RP // US //', platform:'Яндекс.директ'},
+    {name:'ROX-Network // RP // US //', platform:'Яндекс.директ'},
+    {name:'ИМПОРТНО-ЭКСПОРТНАЯ АВТОМОБИЛЬНАЯ КОМПАНИЯ ХУАЮНЬ', platform:'Avito_Self_CPC'},
+  ],
+  'ФРЭШ МАЙНД': [
+    {name:'Nutrilactpro-Y // RP // US //', platform:'Яндекс.директ'},
+  ],
+  'ПОМОГАТЕЛЬ.РУ': [
+    {name:'mg-pomogatel-msk // Помогатель.ру // RP //', platform:'Яндекс.директ'},
+    {name:'mg-pomogatel-regions // Помогатель.ру // RP //', platform:'Яндекс.директ'},
+  ],
+  'КЛЕВЕР': [
+    {name:'FrauMarta-klvr', platform:'Яндекс.директ'},
+  ],
+  'ВИНОУ': [
+    {name:'#012-VKR // ВН_Й ЖУРНАЛ', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ВН_МегаФон', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ВН_Hoff', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ВН_A4food', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ВН_Influence', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Zemma_ВН', platform:'Target.vk.ru'},
+  ],
+  '9 ЯРДОВ': [
+    {name:'#012-VKR // АВИЛОН GAC_9Я', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Авилон JETOUR_9Я', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Авилон TANK_9Я', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Авилон Hongqi_9Я', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Авилон VOYAH', platform:'Target.vk.ru'},
+    {name:'Avito Основа ЖК Малиново', platform:'Avito_Self_CPC'},
+    {name:'Avito Основа ЖК Сенсация', platform:'Avito_Self_CPC'},
+  ],
+  'АИР МЕДИА-АКТИВ': [
+    {name:'#012-VKR // SK Soglasie', platform:'Target.vk.ru'},
+    {name:'#012-VKR // БалтАвтоТрейд', platform:'Target.vk.ru'},
+    {name:'#012-VKR // ТЦ Кунцево Лимитед', platform:'Target.vk.ru'},
+    {name:'#012-VKR // БИЗНЕС КАР М', platform:'Target.vk.ru'},
+    {name:'#012-VKR // АМР', platform:'Target.vk.ru'},
+  ],
+  'МЕДИАКОНСАЛТ': [
+    {name:'#012-VKR // Атмосфера кино', platform:'Target.vk.ru'},
+    {name:'#012-VKR // НМГ Кинопрокат', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Парадиз', platform:'Target.vk.ru'},
+    {name:'Атмосфера кино_27.10', platform:'Avito_Self_CPC'},
+  ],
+  'ТРИО ДИДЖИТАЛ': [
+    {name:'#012-VKR // AKVION', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Эволайт // 2', platform:'Target.vk.ru'},
+    {name:'#012-VKR // Beauty-OK', platform:'Target.vk.ru'},
+  ],
+  'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ': [
+    {name:'100 Билетов / СТ', platform:'Avito_Self_CPC'},
+    {name:'Архыз / ВП Alean / СТ', platform:'Avito_Self_CPC'},
+    {name:'Море тут / ВП Море тут / СТ', platform:'Avito_Self_CPC'},
+    {name:'Морелло / ВП Морелло / СТ', platform:'Avito_Self_CPC'},
+    {name:'ЖК Лесная сказка / ВП Лесная сказка / СТ', platform:'Avito_Self_CPC'},
+    {name:'Старый парк // СТ', platform:'Avito_Self_CPC'},
+    {name:'Патриот / ВП Нижний Новгород / СТ', platform:'Avito_Self_CPC'},
+  ],
+  'ХИТ МЕДИА': [
+    {name:'Yamaguchi', platform:'Avito_Self_CPC'},
+  ],
+};
+
+// ── AUTOCOMPLETE ENGINE ───────────────────────────────────────────────────────
+// Генерирует HTML для autocomplete-поля. Инициализацию вызывай через acInit(id) после вставки в DOM.
+// items: [{label, sub?, value?}] или строки
+// opts:  { placeholder, noteId, onPick(item){} }
+function acHtml(id, placeholder=''){
+  return `
+    <div class="ac-wrap" id="ac-wrap-${id}">
+      <input class="ac-input" id="ac-${id}" type="text" placeholder="${placeholder}"
+        autocomplete="off" spellcheck="false">
+      <span class="ac-clear" id="ac-clr-${id}" title="Очистить" onclick="acClear('${id}')">×</span>
+      <div class="ac-drop" id="ac-drop-${id}"></div>
+    </div>`;
+}
+
+// Глобальное хранилище: id → { items, onPick, getValue }
+const _ac = {};
+
+// items: массив строк или объектов {label, sub}
+// onPick: function(item) — item это {label, sub} или строка
+function acInit(id, items, onPick){
+  const input  = document.getElementById('ac-'+id);
+  const drop   = document.getElementById('ac-drop-'+id);
+  const clr    = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+
+  _ac[id] = { items, onPick, focusIdx: -1 };
+
+  function getItems(){ return _ac[id].items; }
+  function getLabel(item){ return typeof item==='string'?item:item.label; }
+  function getSub(item){ return typeof item==='string'?null:item.sub||null; }
+
+  function highlight(str, q){
+    if(!q) return str;
+    const idx = str.toLowerCase().indexOf(q.toLowerCase());
+    if(idx<0) return str;
+    return str.slice(0,idx)+'<span class="ac-match">'+str.slice(idx,idx+q.length)+'</span>'+str.slice(idx+q.length);
+  }
+
+  function render(q=''){
+    const items = getItems();
+    const filtered = q
+      ? items.filter(it=>getLabel(it).toLowerCase().includes(q.toLowerCase()))
+      : items;
+    _ac[id].focusIdx = -1;
+    if(!filtered.length){
+      drop.innerHTML = `<div class="ac-empty">Не найдено</div>`;
+      drop.style.display = 'block';
+      return;
+    }
+    const els = filtered.map((it,i)=>{
+      const lbl = getLabel(it);
+      const sub = getSub(it);
+      const div = document.createElement('div');
+      div.className = 'ac-opt';
+      div.dataset.idx = i;
+      div.innerHTML = highlight(lbl,q) + (sub ? `<span class="ac-opt-sub">${sub}</span>` : '');
+      div.addEventListener('mousedown', e=>{ e.preventDefault(); acPick(id, lbl, sub); });
+      return div;
+    });
+    drop.innerHTML = '';
+    els.forEach(el => drop.appendChild(el));
+	
+	drop.style.display = 'block';
+  }
+
+  function close(){ drop.style.display='none'; _ac[id].focusIdx=-1; }
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    clr.style.display = q ? 'block' : 'none';
+    render(q);
+  });
+
+  input.addEventListener('focus', ()=>{
+    render(input.value.trim());
+  });
+
+  input.addEventListener('blur', ()=>{
+    // Даём mousedown сработать раньше
+    setTimeout(close, 150);
+  });
+
+  input.addEventListener('keydown', e=>{
+    const opts = drop.querySelectorAll('.ac-opt');
+    if(!opts.length) return;
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      _ac[id].focusIdx = Math.min(_ac[id].focusIdx+1, opts.length-1);
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      _ac[id].focusIdx = Math.max(_ac[id].focusIdx-1, 0);
+    } else if(e.key==='Enter'){
+      e.preventDefault();
+      const focused = opts[_ac[id].focusIdx];
+      if(focused) focused.dispatchEvent(new MouseEvent('mousedown'));
+      return;
+    } else if(e.key==='Escape'){
+      close(); return;
+    } else { return; }
+    opts.forEach((o,i)=>o.classList.toggle('ac-focused', i===_ac[id].focusIdx));
+    opts[_ac[id].focusIdx]?.scrollIntoView({block:'nearest'});
+  });
+}
+
+function acPick(id, label, sub){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  const drop  = document.getElementById('ac-drop-'+id);
+  if(!input) return;
+  input.value = label;
+  clr.style.display = 'block';
+  drop.style.display = 'none';
+  const cb = _ac[id]?.onPick;
+  if(cb) cb({label, sub});
+}
+
+function acClear(id){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+  input.value = '';
+  clr.style.display = 'none';
+  const cb = _ac[id]?.onPick;
+  if(cb) cb(null);
+}
+
+function acVal(id){
+  return document.getElementById('ac-'+id)?.value || '';
+}
+
+function acSet(id, val){
+  const input = document.getElementById('ac-'+id);
+  const clr   = document.getElementById('ac-clr-'+id);
+  if(!input) return;
+  input.value = val;
+  if(clr) clr.style.display = val ? 'block' : 'none';
+}
+
+function acSetItems(id, items){
+  if(_ac[id]) _ac[id].items = items;
+}
+
+// Инициализирует тройку Агентство → Площадка → Кабинет для формы.
+// prefix: уникальный префикс ('top'/'open'/'chg'/'tech')
+// opts:   { cabinetRequired, onAgencyPick, onPlatformPick, curLabelId }
+function initTriple(prefix, opts={}){
+  const agencyItems  = AGENCIES_DATA.map(a=>({label:a.name, sub:a.inn||null}));
+  const platformItems = PLATFORMS_DATA.map(p=>typeof p==='string'?{label:p}:{label:p});
+
+  // Получить текущий список кабинетов с учётом выбранного агентства и площадки
+  function getCabs(){
+    const ag = acVal(prefix+'-ag');
+    const pl = acVal(prefix+'-pl');
+    let cabs = ag && CABINETS_FULL[ag] ? CABINETS_FULL[ag] : Object.values(CABINETS_FULL).flat();
+    if(pl) cabs = cabs.filter(c=>c.platform===pl);
+    return cabs.map(c=>({label:c.name, sub:c.platform}));
+  }
+
+  function updateNote(){
+    const note = document.getElementById(prefix+'-cab-note');
+    if(!note) return;
+    const ag = acVal(prefix+'-ag');
+    const pl = acVal(prefix+'-pl');
+    if(!ag && !pl){ note.textContent='Введите название кабинета или выберите агентство для фильтрации'; return; }
+    const cabs = getCabs();
+    note.textContent = cabs.length ? `Найдено: ${cabs.length}` : 'Кабинеты не найдены — введите вручную';
+  }
+
+  acInit(prefix+'-ag', agencyItems, item=>{
+    acSetItems(prefix+'-cab', getCabs());
+    updateNote();
+    if(opts.onAgencyPick) opts.onAgencyPick(item);
+    // В форме OPEN — заполнить поле "Агентство РА по договору"
+    const raField = document.getElementById('f-ra-name');
+    if(raField && item && !raField.value) raField.value = item.label;
+  });
+
+  acInit(prefix+'-pl', platformItems, item=>{
+    acSetItems(prefix+'-cab', getCabs());
+    updateNote();
+    if(item && opts.curLabelId) updateCurrency(item.label, opts.curLabelId);
+    if(opts.onPlatformPick) opts.onPlatformPick(item);
+  });
+
+  acInit(prefix+'-cab', getCabs(), item=>{
+    if(!item) return;
+    // Автозаполнение площадки если она однозначно определяется
+    if(item.sub){
+      const curPlat = acVal(prefix+'-pl');
+      if(!curPlat || curPlat !== item.sub){
+        acSet(prefix+'-pl', item.sub);
+        // Обновить курсовую метку
+        if(opts.curLabelId) updateCurrency(item.sub, opts.curLabelId);
+      }
+    }
+    updateNote();
+  });
+
+  updateNote();
+}
+
+const FILE_DROP = `
+  <div class="form-group">
+    <label class="form-label">Прикрепить файл <span class="opt">необязательно</span></label>
+    <div class="file-drop" onclick="showToast('Загрузка файлов — в финальной версии')">
+      ↑ Перетащите файл или нажмите для выбора<br>
+      <span style="font-size:11px;margin-top:4px;display:block">PDF, Word, изображения · до 10 МБ</span>
+    </div>
+  </div>`;
+
+// Закрывать ac-drop при клике вне
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.ac-wrap')){
+    document.querySelectorAll('.ac-drop').forEach(d=>d.style.display='none');
+  }
+});
+
+// ── CURRENCY ─────────────────────────────────────────────────────────────────
+function updateCurrency(platform, labelId){
+  const el = document.getElementById(labelId);
+  if(!el) return;
+  if(platform==='Telegram Ads') el.textContent = 'EUR до НДС';
+  else if(platform==='TikTok') el.textContent = 'USD до НДС';
+  else el.textContent = 'руб. до НДС';
+}
+
+function onPlatformChange(selectEl, labelId){
+  updateCurrency(selectEl.value, labelId);
+}
+
+
+
+function buildForm(type){
+
+  if(type==='OPEN'){
+    const html = `
+    <div class="form-divider">Кабинет</div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      ${acHtml('open-pl','Введите или выберите площадку')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      ${acHtml('open-ag','Введите или выберите агентство')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Аккаунт / Кабинет <span class="opt">необязательно</span></label>
+      ${acHtml('open-cab','Название кабинета')}
+      <div class="ac-note" id="open-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Сумма пополнения, <span id="cur-open">руб. до НДС</span> <span class="opt">необязательно — если нужно сразу → OPEN+TOP</span></label>
+      <input class="form-input" id="f-amount" type="number" placeholder="оставьте пустым если не нужно">
+    </div>
+    <div class="form-divider">Рекламодатель (ОРД)</div>
+    <div class="form-group">
+      <label class="form-label">Рекламодатель (КРД) <span class="req">*</span></label>
+      <input class="form-input" id="f-client" type="text" placeholder='ООО "Название"'>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">ИНН рекламодателя <span class="req">*</span></label>
+        <input class="form-input" id="f-inn-client" type="text" placeholder="7700000000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ККТУ <span class="opt">необязательно</span></label>
+        <input class="form-input" id="f-kktu" type="text" placeholder="Код категории">
+      </div>
+    </div>
+    <div class="form-divider">Агентство по договору</div>
+    <div class="form-group">
+      <label class="form-label">Агентство РА по договору <span class="req">*</span></label>
+      <input class="form-input" id="f-ra-name" type="text" placeholder="Подтягивается из поля Агентство выше">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ИНН РА <span class="req">*</span></label>
+      <input class="form-input" id="f-inn-ra" type="text" placeholder="7700000000">
+    </div>
+    <div class="form-divider">Договор</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Номер договора <span class="req">*</span></label>
+        <input class="form-input" id="f-contract-num" type="text" placeholder="ИД-0000/2024">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Дата договора <span class="req">*</span></label>
+        <input class="form-input" id="f-contract-date" type="date">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Тип договора <span class="req">*</span></label>
+        <select class="form-select" id="f-contract-type">
+          <option value="">Выберите тип</option>
+          <option>Агентский</option><option>Комиссионный</option><option>Сервисный</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Предмет договора <span class="req">*</span></label>
+        <input class="form-input" id="f-contract-subject" type="text" placeholder="Размещение рекламы">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
+      <input class="form-input" id="f-access" type="text" placeholder="email@example.com или имя">
+    </div>
+    ${FILE_DROP}`;
+    setTimeout(()=>initTriple('open', {curLabelId:'cur-open'}), 0);
+    return html;
+  }
+
+  if(type==='TOP'){
+    const html = `
+    <div class="form-divider">Кабинет</div>
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      ${acHtml('top-ag','Введите или выберите агентство')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      ${acHtml('top-pl','Введите или выберите площадку')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кабинет <span class="req">*</span></label>
+      ${acHtml('top-cab','Введите название кабинета')}
+      <div class="ac-note" id="top-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
+    </div>
+    <div class="form-divider">Сумма</div>
+    <div class="form-group">
+      <label class="form-label">Сумма пополнения, <span id="cur-top">руб. до НДС</span> <span class="req">*</span></label>
+      <input class="form-input" id="f-amount" type="number" placeholder="150000">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Комментарий <span class="opt">необязательно</span></label>
+      <textarea class="form-textarea" placeholder="Дополнительная информация..."></textarea>
+    </div>
+    ${FILE_DROP}`;
+    setTimeout(()=>initTriple('top', {curLabelId:'cur-top'}), 0);
+    return html;
+  }
+
+  if(type==='CHANGE'){
+    const html = `
+    <div class="form-divider">Кабинет</div>
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      ${acHtml('chg-ag','Введите или выберите агентство')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      ${acHtml('chg-pl','Введите или выберите площадку')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кабинет <span class="req">*</span></label>
+      ${acHtml('chg-cab','Введите название кабинета')}
+      <div class="ac-note" id="chg-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
+    </div>
+    <div class="form-divider">Изменение</div>
+    <div class="form-group">
+      <label class="form-label">Тип изменения <span class="req">*</span></label>
+      <select class="form-select">
+        <option value="">Выберите</option>
+        <option>Смена агентства</option><option>Смена рекламодателя</option>
+        <option>Изменение договора</option><option>Выдача доступа</option>
+        <option>Смена названия кабинета</option><option>Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Описание изменения <span class="opt">необязательно</span></label>
+      <textarea class="form-textarea" placeholder="Что именно изменить и на что..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
+      <input class="form-input" type="text" placeholder="email@example.com или имя">
+    </div>
+    ${FILE_DROP}`;
+    setTimeout(()=>initTriple('chg'), 0);
+    return html;
+  }
+
+  if(type==='TECH'){
+    const html = `
+    <div class="form-divider">Кабинет</div>
+    <div class="form-group">
+      <label class="form-label">Агентство (РА) <span class="req">*</span></label>
+      ${acHtml('tech-ag','Введите или выберите агентство')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Площадка <span class="req">*</span></label>
+      ${acHtml('tech-pl','Введите или выберите площадку')}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кабинет <span class="opt">необязательно</span></label>
+      ${acHtml('tech-cab','Если вопрос по конкретному кабинету')}
+      <div class="ac-note" id="tech-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
+    </div>
+    <div class="form-divider">Проблема</div>
+    <div class="form-group">
+      <label class="form-label">Тема обращения <span class="req">*</span></label>
+      <select class="form-select">
+        <option value="">Выберите тему</option>
+        <option>Модерация объявления</option><option>Технический сбой</option>
+        <option>Проблема с оплатой</option><option>Блокировка аккаунта</option><option>Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Описание проблемы <span class="req">*</span></label>
+      <textarea class="form-textarea" style="min-height:110px" placeholder="Что произошло, когда, как воспроизвести..."></textarea>
+    </div>
+    ${FILE_DROP}`;
+    setTimeout(()=>initTriple('tech'), 0);
+    return html;
+  }
+
+  return '';
+}
+
+
+
+function submitNew(){
+  const today = '10.04.26';
+  const id = 'AO-0'+String(nextId++).padStart(2,'0');
+  const amtInput = document.querySelector('#new-body input[type=number]');
+  const amt = amtInput?parseInt(amtInput.value)||null:null;
+  const type = newType==='OPEN'&&amt?'OPEN+TOP':newType;
+
+  // Определяем prefix по текущему типу
+  const prefixMap = {OPEN:'open',TOP:'top',CHANGE:'chg',TECH:'tech'};
+  const p = prefixMap[newType] || 'open';
+  const agency   = acVal(p+'-ag')  || 'ФЕРСТ ДАТА';
+  const platform = acVal(p+'-pl')  || PLATFORMS[0];
+  const account  = acVal(p+'-cab') || 'Новый кабинет · '+id;
+
+  rows.unshift({
+    id, date:today, iso:'2026-04-10',
+    platform, agency, type, account,
+    client:'ООО "Новый клиент"', status:'НОВАЯ', wait:0, amount:amt
+  });
+  closeNew();
+  renderTable();
+  showToast(`Заявка ${id} создана · ${type}`, 'success');
+}
+
+// ── GOOGLE SHEETS INTEGRATION ─────────────────────────────────────────────────
+// После публикации Apps Script вставь сюда URL развёртывания
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzSf9QK3rjLPZp12EfNTbk0EjOng1seimaVsvwrXC79KcIH7K9LQtUt_hqv6f9JMiJE/exec';
+
+// Динамические справочники (заполняются из Sheets, до загрузки — дефолты)
+let AGENCIES_DATA  = [
+  {name:'ФЕРСТ ДАТА',inn:''},
+  {name:'СОШИАЛ КРАФТ',inn:''},
+  {name:'ЮНИОН-МЕДИА-СЕРВИС',inn:''},
+  {name:'РИЧ НИНДЗЯ',inn:''},
+  {name:'НАСТИ',inn:''},
+  {name:'СПАРТА',inn:''},
+  {name:'АЙСИСТЕМС',inn:''},
+  {name:'МЕДИА-ДОКТОР',inn:''},
+  {name:'РЕАКТОР',inn:''},
+  {name:'ФРЭШ МАЙНД',inn:''},
+  {name:'ПОМОГАТЕЛЬ.РУ',inn:''},
+  {name:'КЛЕВЕР',inn:''},
+  {name:'ВИНОУ',inn:''},
+  {name:'9 ЯРДОВ',inn:''},
+  {name:'АИР МЕДИА-АКТИВ',inn:''},
+  {name:'МЕДИАКОНСАЛТ',inn:''},
+  {name:'ТРИО ДИДЖИТАЛ',inn:''},
+  {name:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',inn:''},
+  {name:'ХИТ МЕДИА',inn:''},
+];
+let PLATFORMS_DATA = ['Яндекс.директ','Target.vk.ru','Avito_Self_CPC'];
+let ACCOUNTS_DATA  = []; // заполнится из Sheets
+
+function loadRefs() {
+  if (!SHEETS_URL || SHEETS_URL.includes('ВСТАВЬ')) {
+    console.log('Sheets URL не задан — используем дефолтные справочники');
+    return;
+  }
+  fetch(SHEETS_URL + '?type=all')
+    .then(r => r.json())
+    .then(data => {
+      if (data.agencies && data.agencies.length) {
+        AGENCIES_DATA = data.agencies;
+        AGENCIES.length = 0;
+        data.agencies.forEach(a => AGENCIES.push(a.name));
+        // Обновляем сайдбар агентств
+        const agList = document.getElementById('agency-list');
+        if(agList){
+          agList.innerHTML = `<div class="sidebar-item active" onclick="filterBy('agency','all',this)"><span class="icon">◈</span>Все агентства</div>`
+            + data.agencies.map(a=>`<div class="sidebar-item" onclick="filterBy('agency','${a.name.replace(/'/g,"\\'")}',this)"><span class="icon">◻</span>${a.name}</div>`).join('');
+        }
+      }
+      if (data.platforms && data.platforms.length) {
+        PLATFORMS_DATA = data.platforms;
+        PLATFORMS.length = 0;
+        data.platforms.forEach(p => PLATFORMS.push(p));
+        // Обновляем сайдбар площадок (только прокручиваемый список)
+        const platList = document.getElementById('platform-list');
+        if(platList){
+          platList.innerHTML = data.platforms.map(p=>`<div class="sidebar-item" onclick="filterBy('platform','${p.replace(/'/g,"\\'")}',this)"><span class="icon">◻</span>${p}</div>`).join('');
+        }
+      }
+      if (data.accounts && data.accounts.length) {
+        ACCOUNTS_DATA = data.accounts;
+        Object.keys(CABINETS_FULL).forEach(k => delete CABINETS_FULL[k]);
+        data.accounts.forEach(a => {
+          if (!CABINETS_FULL[a.agency]) CABINETS_FULL[a.agency] = [];
+          CABINETS_FULL[a.agency].push({name: a.name, platform: a.platform});
+        });
+      }
+      showToast('Справочники загружены из Google Sheets ✓', 'success');
+      renderTable();
+    })
+    .catch(err => {
+      console.warn('Ошибка загрузки справочников:', err);
+    });
+}
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast'+(type==='success'?' success':'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+function searchSidebar(input, listId, emptyId){
+  const q = input.value.toLowerCase();
+  const list = document.getElementById(listId);
+  const items = list.querySelectorAll('.sidebar-item');
+  let found = 0;
+  items.forEach(item => {
+    const match = !q || item.textContent.toLowerCase().includes(q);
+    item.style.display = match ? '' : 'none';
+    if(match) found++;
+  });
+  document.getElementById(emptyId).style.display = found ? 'none' : '';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderTable();
+loadRefs();
+</script>
+</body>
+</html>
