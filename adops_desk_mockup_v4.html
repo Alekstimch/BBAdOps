@@ -825,14 +825,20 @@ function acInit(id, items, onPick){
       drop.style.display = 'block';
       return;
     }
-    drop.innerHTML = filtered.map((it,i)=>{
+    const els = filtered.map((it,i)=>{
       const lbl = getLabel(it);
       const sub = getSub(it);
-      return `<div class="ac-opt" data-idx="${i}" data-label="${lbl.replace(/"/g,'&quot;')}"
-        onmousedown="acPick('${id}',${JSON.stringify(lbl)},${JSON.stringify(sub)})"
-        >${highlight(lbl,q)}${sub?`<span class="ac-opt-sub">${sub}</span>`:''}</div>`;
-    }).join('');
-    drop.style.display = 'block';
+      const div = document.createElement('div');
+      div.className = 'ac-opt';
+      div.dataset.idx = i;
+      div.innerHTML = highlight(lbl,q) + (sub ? `<span class="ac-opt-sub">${sub}</span>` : '');
+      div.addEventListener('mousedown', e=>{ e.preventDefault(); acPick(id, lbl, sub); });
+      return div;
+    });
+    drop.innerHTML = '';
+    els.forEach(el => drop.appendChild(el));
+	
+	drop.style.display = 'block';
   }
 
   function close(){ drop.style.display='none'; _ac[id].focusIdx=-1; }
