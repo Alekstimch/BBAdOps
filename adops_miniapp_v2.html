@@ -282,10 +282,6 @@
         <div class="spinner" id="spinner"></div>
         <span id="parse-btn-text">Разобрать заявку</span>
       </button>
-      <div class="api-section">
-        <div class="api-lbl">DeepSeek API Key</div>
-        <input type="password" class="form-input" id="api-key" placeholder="sk-...">
-      </div>
     </div>
 
     <!-- TAB: ВРУЧНУЮ -->
@@ -356,25 +352,18 @@ const ACCOUNTS_FALLBACK = [
   { name: 'Фуд_VK_Ф03',                        platform: 'VK Реклама',     agency: 'Клевер Медиа' },
 ];
 
-// URL вашего API — замените на реальный в продакшне
-const API_BASE = 'https://web-production-a93d0.up.railway.app';
+// URL бэкенда на Railway — замени на свой
+const API_BASE = 'https://your-project.railway.app';
 
-let ACCOUNTS = [];  // заполняется при загрузке
+let ACCOUNTS = [];
 
 async function loadAccounts() {
   try {
-    // В продакшне раскомментировать:
     const resp = await fetch(API_BASE + '/api/accounts');
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     ACCOUNTS = await resp.json();
-
-    // Имитация загрузки для теста (убрать в продакшне)
-    // await new Promise(r => setTimeout(r, 600));
-    // ACCOUNTS = ACCOUNTS_FALLBACK;
-
     showRefStatus('ok', `Справочник загружен · ${ACCOUNTS.length} аккаунтов`);
   } catch(e) {
-    // Если API недоступен — работаем с fallback
     ACCOUNTS = ACCOUNTS_FALLBACK;
     showRefStatus('err', `API недоступен · используем кэш (${ACCOUNTS.length})`);
   }
@@ -680,70 +669,32 @@ function submitManual() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// DEEPSEEK — только извлечение полей, БЕЗ справочника в промпте
+// PARSE — вызываем бэкенд, который сам обращается к DeepSeek
 // ══════════════════════════════════════════════════════════════════════════
 
 async function runParse() {
-  const key  = document.getElementById('api-key').value.trim();
   const text = document.getElementById('raw-input').value.trim();
-  if (!key)  { toast('Введите API ключ', 'err'); return; }
   if (!text) { toast('Вставьте текст заявки', 'err'); return; }
 
   setLoading(true);
 
-  // Промпт без справочника — только извлечение полей из текста
-  const systemPrompt = `Ты — парсер рекламных заявок. Тип заявки: ${currentType}.
-
-Извлеки поля из текста и верни ТОЛЬКО валидный JSON без markdown:
-{
-  "raw_account_name": "название аккаунта точно как написал клиент, или null",
-  "amount": число в рублях или null,
-  "platform": "площадка если явно указана, иначе null",
-  "agency": "агентство если явно указано, иначе null",
-  "client_entity": "юр. лицо рекламодателя или null",
-  "inn": "ИНН или null",
-  "contract_num": "номер договора или null",
-  "contract_date": "дата договора или null",
-  "contract_type": "тип договора или null",
-  "access_email": "email для доступа или null",
-  "issue_topic": "тема техвопроса или null",
-  "comment": "важный комментарий или null",
-  "confidence": число от 0.0 до 1.0
-}
-
-Правила:
-- raw_account_name — ровно то что написал клиент, без изменений
-- amount — только цифры, без пробелов и символов
-- confidence: 1.0 = все нужные поля найдены, 0.5 = есть неясности`;
-
   try {
-    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+    const resp = await fetch(API_BASE + '/api/parse', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: 'deepseek-chat', max_tokens: 400, temperature: 0.1,
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, type: currentType })
     });
 
     if (!resp.ok) {
       const e = await resp.json().catch(() => ({}));
-      throw new Error(e.error?.message || `HTTP ${resp.status}`);
+      throw new Error(e.detail || `HTTP ${resp.status}`);
     }
 
-    const data  = await resp.json();
-    const clean = (data.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-
+    const parsed = await resp.json();
     parseResult = { type: currentType, ...parsed };
 
-    // Матчинг делает JS локально по загруженному справочнику
     const match = matchAccount(parsed.raw_account_name);
-    if (match.type === 'exact') {
-      matchedAccount = match.exact;
-    } else {
-      matchedAccount = null;
-    }
+    matchedAccount = match.type === 'exact' ? match.exact : null;
 
     inputMode = 'paste';
     renderReview(match);
