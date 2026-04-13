@@ -1546,7 +1546,7 @@ async function runParse(){
   try {
     const resp = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer DEEPSEEK_KEY_HERE'},
+      headers: {'Content-Type':'application/json','Authorization':'Bearer sk-a3017d0492f349d6b3718348be27d255'},
       body: JSON.stringify({model:'deepseek-chat',max_tokens:2000,temperature:0,
         messages:[{role:'system',content:DEEPSEEK_SYSTEM},{role:'user',content:text}]})
     });
