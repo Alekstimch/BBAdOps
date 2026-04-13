@@ -1509,28 +1509,6 @@ function submitNew(){
 
 // ── AI PARSE ──────────────────────────────────────────────────────────────────
 
-const DEEPSEEK_SYSTEM = `Ты парсер заявок рекламного агентства. Из текста извлеки все заявки на создание кабинетов.
-Верни ТОЛЬКО валидный JSON-массив объектов. Никакого текста до или после.
-Каждый объект:
-{
-  "account": "string|null",
-  "platform": "string|null",
-  "agency": "string|null",
-  "amount": number|null,
-  "client": "string|null",
-  "inn_client": "string|null",
-  "inn_ra": "string|null",
-  "ra_name": "string|null",
-  "contract_num": "string|null",
-  "contract_date": "string|null",
-  "contract_type": "string|null",
-  "contract_subject": "string|null",
-  "access": "string|null",
-  "okved": "string|null",
-  "nds": true|false|null
-}
-Правила: #012-VKR => Target.vk.ru. Агентство из шапки применяй ко всем. ИНН исполнителя = inn_ra. "пополнять не нужно" => amount:null. Telegram без Ads.`;
-
 let _parsedCards = [];
 let _parsedSelected = new Set();
 
@@ -1544,16 +1522,13 @@ async function runParse(){
   hint.textContent = 'Анализирую...';
   resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>DeepSeek разбирает текст...</div>';
   try {
-    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+    const resp = await fetch('https://web-production-a93d0.up.railway.app/api/parse-open', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer sk-a3017d0492f349d6b3718348be27d255'},
-      body: JSON.stringify({model:'deepseek-chat',max_tokens:2000,temperature:0,
-        messages:[{role:'system',content:DEEPSEEK_SYSTEM},{role:'user',content:text}]})
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
     });
     const data = await resp.json();
-    const raw = data.choices?.[0]?.message?.content||'[]';
-    _parsedCards = JSON.parse(raw.replace(/```json|```/g,'').trim());
-    if(!Array.isArray(_parsedCards)) _parsedCards = [_parsedCards];
+    _parsedCards = Array.isArray(data) ? data : [data];
   } catch(e) {
     _parsedCards = demoParseText(text);
   }
