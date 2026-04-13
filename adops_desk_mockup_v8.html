@@ -1524,7 +1524,7 @@ async function runParse(){
   const resultEl = document.getElementById('ai-result');
   btn.disabled = true;
   hint.textContent = 'Анализирую...';
-  resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>DeepSeek разбирает текст...</div>';
+  resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>Сейчас происходит магия...</div>';
   try {
     const resp = await fetch('https://web-production-a93d0.up.railway.app/api/parse-open', {
       method: 'POST',
