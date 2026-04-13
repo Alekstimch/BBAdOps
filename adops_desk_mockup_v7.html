@@ -1165,7 +1165,7 @@ document.addEventListener('click', e=>{
 function updateCurrency(platform, labelId){
   const el = document.getElementById(labelId);
   if(!el) return;
-  if(platform==='Telegram Ads') el.textContent = 'EUR до НДС';
+  if(platform==='Telegram') el.textContent = 'EUR до НДС';
   else if(platform==='TikTok') el.textContent = 'USD до НДС';
   else el.textContent = 'руб. до НДС';
 }
@@ -1413,7 +1413,7 @@ let AGENCIES_DATA  = [
   {name:'СОЦИАЛЬНЫЕ ТЕХНОЛОГИИ',inn:''},
   {name:'ХИТ МЕДИА',inn:''},
 ];
-let PLATFORMS_DATA = ['Яндекс.директ','Target.vk.ru','Avito_Self_CPC','Telegram Ads','TikTok'];
+let PLATFORMS_DATA = ['Яндекс.директ','Target.vk.ru','Avito_Self_CPC','Telegram','TikTok'];
 let ACCOUNTS_DATA  = []; // заполнится из Sheets
 
 function loadRefs() {
