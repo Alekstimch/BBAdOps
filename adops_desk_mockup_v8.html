@@ -265,6 +265,43 @@
   .new-tab.active.t-change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
   .new-tab.active.t-tech   { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
 
+  /* AI PARSE */
+  .ai-textarea {
+    width: 100%; min-height: 140px; padding: 12px; border-radius: 6px;
+    border: 1px solid var(--border2); background: var(--surface2); color: var(--text);
+    font-family: var(--sans); font-size: 13px; outline: none; resize: vertical;
+    transition: border-color 0.15s; line-height: 1.6;
+  }
+  .ai-textarea:focus { border-color: #f97316; }
+  .ai-textarea::placeholder { color: var(--text3); }
+  .btn-parse {
+    padding: 8px 18px; border-radius: 6px; border: none;
+    background: var(--accent);
+    color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-parse:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-parse:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .ai-result-card {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px;
+  }
+  .ai-result-card:hover { border-color: #f97316; }
+  .ai-result-card.selected { border-color: #f97316; background: rgba(249,115,22,0.08); }
+  .ai-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ai-card-num { font-family: var(--mono); font-size: 10px; color: var(--text3); background: var(--surface3); padding: 2px 7px; border-radius: 10px; }
+  .ai-card-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .ai-card-sub  { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .ai-card-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+  .ai-tag { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--surface3); color: var(--text3); }
+  .ai-tag.ok   { background: var(--green-dim); color: var(--green); }
+  .ai-tag.miss { background: var(--red-dim); color: var(--red); }
+  .ai-spinner { display: flex; align-items: center; gap: 10px; color: var(--text2); font-size: 13px; padding: 20px 0; }
+  .ai-spin { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .field-parsed { border-color: var(--green) !important; background: var(--green-dim) !important; }
+  .field-empty-req { border-color: var(--yellow) !important; }
+
   /* FORM */
   .form-group { margin-bottom: 14px; }
   .form-label { display: block; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
@@ -1323,6 +1360,16 @@ function buildForm(type){
       <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
       <input class="form-input" id="f-access" type="text" placeholder="email@example.com или имя">
     </div>
+    <div class="form-divider">Заполнить из текста</div>
+    <div class="form-group">
+      <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
+      <textarea class="ai-textarea" id="ai-input" placeholder="Вставьте текст из письма или сообщения в Telegram"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="btn-parse" onclick="runParse()"><span>⚡ Заполнить</span></button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="ai-hint">Поля будут заполнены автоматически</span>
+    </div>
+    <div id="ai-result"></div>
     ${FILE_DROP}`;
     setTimeout(()=>initTriple('open', {curLabelId:'cur-open'}), 0);
     return html;
@@ -1458,6 +1505,217 @@ function submitNew(){
   closeNew();
   renderTable();
   showToast(`Заявка ${id} создана · ${type}`, 'success');
+}
+
+// ── AI PARSE ──────────────────────────────────────────────────────────────────
+
+const DEEPSEEK_SYSTEM = `Ты парсер заявок рекламного агентства. Из текста извлеки все заявки на создание кабинетов.
+Верни ТОЛЬКО валидный JSON-массив объектов. Никакого текста до или после.
+Каждый объект:
+{
+  "account": "string|null",
+  "platform": "string|null",
+  "agency": "string|null",
+  "amount": number|null,
+  "client": "string|null",
+  "inn_client": "string|null",
+  "inn_ra": "string|null",
+  "ra_name": "string|null",
+  "contract_num": "string|null",
+  "contract_date": "string|null",
+  "contract_type": "string|null",
+  "contract_subject": "string|null",
+  "access": "string|null",
+  "okved": "string|null",
+  "nds": true|false|null
+}
+Правила: #012-VKR => Target.vk.ru. Агентство из шапки применяй ко всем. ИНН исполнителя = inn_ra. "пополнять не нужно" => amount:null. Telegram без Ads.`;
+
+let _parsedCards = [];
+let _parsedSelected = new Set();
+
+async function runParse(){
+  const text = (document.getElementById('ai-input')||{}).value||'';
+  if(!text.trim()){ showToast('Вставьте текст заявки',''); return; }
+  const btn = document.getElementById('btn-parse');
+  const hint = document.getElementById('ai-hint');
+  const resultEl = document.getElementById('ai-result');
+  btn.disabled = true;
+  hint.textContent = 'Анализирую...';
+  resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>DeepSeek разбирает текст...</div>';
+  try {
+    const resp = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer DEEPSEEK_KEY_HERE'},
+      body: JSON.stringify({model:'deepseek-chat',max_tokens:2000,temperature:0,
+        messages:[{role:'system',content:DEEPSEEK_SYSTEM},{role:'user',content:text}]})
+    });
+    const data = await resp.json();
+    const raw = data.choices?.[0]?.message?.content||'[]';
+    _parsedCards = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if(!Array.isArray(_parsedCards)) _parsedCards = [_parsedCards];
+  } catch(e) {
+    _parsedCards = demoParseText(text);
+  }
+  if(!Array.isArray(_parsedCards)||!_parsedCards.length){
+    resultEl.innerHTML = '<div style="font-size:12px;color:var(--red);padding:12px 0">Не удалось распознать заявки — попробуйте другой текст</div>';
+    hint.textContent = 'Ошибка распознавания';
+    btn.disabled = false; return;
+  }
+  _parsedSelected = new Set(_parsedCards.length===1 ? [0] : []);
+  hint.textContent = 'Найдено заявок: ' + _parsedCards.length;
+  renderParseCards();
+  btn.disabled = false;
+}
+
+function demoParseText(text){
+  const t = text;
+  const results = [];
+  const agMatch = AGENCIES.find(a=>t.toUpperCase().includes(a.toUpperCase()));
+  const cabLines = t.match(/\d+\)\s*([^\n]+)/g)||[];
+  const entries = cabLines.length ? cabLines : [null];
+  entries.forEach(function(line){
+    const accName = line ? line.replace(/^\d+\)\s*/,'').split(/\n|данные/i)[0].trim()
+      : (t.match(/[Кк]абинет[:\s]+([^\n,]+)/)||[])[1]||null;
+    const platform = (accName||t).includes('#012-VKR') ? 'Target.vk.ru'
+      : /Директ|директ|Яндекс/.test(t) ? 'Яндекс.директ'
+      : /TikTok/.test(t) ? 'TikTok'
+      : /Telegram/.test(t) ? 'Telegram' : null;
+    const amtM = t.match(/(\d[\d\s]{2,})\s*руб/i);
+    const skipAmt = /пополнять не нужно/i.test(line||'') || /пополнять не нужно/i.test(t);
+    const innAll = Array.from(t.matchAll(/ИНН[:\s(]+(\d{10,12})/gi)).map(function(m){ return m[1]; });
+    const contractDate = (t.match(/\d{2}\.\d{2}\.\d{4}/)||[])[0]||null;
+    const raNameM = t.match(/Исполнитель[^:]*:\s*([^\n(]+)/i);
+    results.push({
+      account: accName||null,
+      platform: platform,
+      agency: agMatch||null,
+      amount: skipAmt||!amtM ? null : parseInt(amtM[1].replace(/\s/g,'')),
+      client: (t.match(/(?:Рекламодатель[:\s-]+)(ООО|ИП|АО|ПАО)?\s*[«"]?([^\n»"(]+)/i)||[])[2]||null,
+      inn_client: innAll[0]||null,
+      inn_ra: innAll[1]||null,
+      ra_name: raNameM ? raNameM[1].replace(/[«»""]/g,'').trim() : null,
+      contract_num: (t.match(/[Дд]оговор[^N№]*[N№]\s*([\w\/-]+)/)||t.match(/№\s*([\w\/-]+)/)||[])[1]||null,
+      contract_date: contractDate,
+      contract_type: /посредни/i.test(t) ? 'Посреднический' : /услуг/i.test(t) ? 'Договор оказания услуг' : null,
+      contract_subject: (t.match(/[Пп]редмет[^:]*:\s*([^\n]+)/)||[])[1]||null,
+      access: (t.match(/доступ[^:a-z]*[:\s]+([^\n,]+)/i)||[])[1]||null,
+      okved: (t.match(/ОКВЭД[^(]*\(([^)]+)\)/i)||[])[1]||null,
+      nds: /с НДС/i.test(t) ? true : null
+    });
+  });
+  return results;
+}
+
+function renderParseCards(){
+  const el = document.getElementById('ai-result');
+  if(!el) return;
+  const FIELD_LABELS = {
+    account:'кабинет', platform:'площадка', agency:'агентство', amount:'сумма',
+    client:'клиент', inn_client:'ИНН клиента', inn_ra:'ИНН РА', ra_name:'РА по договору',
+    contract_num:'договор №', contract_date:'дата договора', contract_type:'тип договора',
+    contract_subject:'предмет', access:'доступы'
+  };
+  const REQUIRED = ['account','platform','agency','client','inn_client','inn_ra','contract_num','contract_date','contract_type','contract_subject'];
+  let html = '<div style="margin-top:14px">';
+  if(_parsedCards.length>1){
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-family:var(--mono)">Выберите заявки для создания:</div>';
+  }
+  _parsedCards.forEach(function(card, i){
+    const sel = _parsedSelected.has(i);
+    const present = Object.entries(FIELD_LABELS).filter(function(e){ return card[e[0]]!=null && card[e[0]]!==''; });
+    const missing = REQUIRED.filter(function(k){ return card[k]==null || card[k]===''; });
+    const subtitle = [card.agency, card.platform, card.amount ? card.amount.toLocaleString('ru-RU')+' руб.' : 'без пополнения'].filter(Boolean).join(' · ');
+    const selLabel = sel
+      ? '<span style="margin-left:auto;font-size:11px;color:var(--green);font-family:var(--mono)">✓ выбрана</span>'
+      : '<span style="margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--mono)">нажмите чтобы выбрать</span>';
+    const cardNum = _parsedCards.length>1 ? (i+1)+' из '+_parsedCards.length : 'Заявка';
+    html += '<div class="ai-result-card'+(sel?' selected':'')+'" onclick="toggleParseCard('+i+')">'
+      + '<div class="ai-card-header">'
+      + '<span class="ai-card-num">'+cardNum+'</span>'
+      + '<span style="font-family:var(--mono);font-size:11px;color:var(--green)">OPEN</span>'
+      + selLabel
+      + '</div>'
+      + '<div class="ai-card-name">'+(card.account||'— кабинет не определён')+'</div>'
+      + '<div class="ai-card-sub">'+subtitle+'</div>'
+      + '<div class="ai-card-tags">'
+      + present.map(function(e){ return '<span class="ai-tag ok">'+e[1]+'</span>'; }).join('')
+      + missing.map(function(k){ return '<span class="ai-tag miss">'+(FIELD_LABELS[k]||k)+'</span>'; }).join('')
+      + '</div></div>';
+  });
+  const anySelected = _parsedSelected.size>0 || _parsedCards.length===1;
+  const noSelHint = _parsedCards.length>1 && _parsedSelected.size===0
+    ? '<span style="font-size:11px;color:var(--text3);font-family:var(--mono)">выберите хотя бы одну</span>' : '';
+  html += '<div style="display:flex;gap:8px;align-items:center;margin-top:12px">'
+    + '<button class="btn-primary" style="font-size:12px;padding:7px 16px" onclick="applyParseToForm()" '+(anySelected?'':'disabled')+'>Заполнить форму &rarr;</button>'
+    + noSelHint
+    + '</div></div>';
+  el.innerHTML = html;
+}
+
+function toggleParseCard(i){
+  if(_parsedCards.length===1) return;
+  if(_parsedSelected.has(i)) _parsedSelected.delete(i);
+  else _parsedSelected.add(i);
+  renderParseCards();
+}
+
+function applyParseToForm(){
+  const indices = _parsedCards.length===1 ? [0] : Array.from(_parsedSelected);
+  if(!indices.length) return;
+  fillOpenForm(_parsedCards[indices[0]]);
+  if(indices.length>1){
+    showToast('Заявка 1 заполнена — создайте её, затем вернитесь для следующей', 'success');
+  }
+}
+
+function fillOpenForm(card){
+  const CONTRACT_TYPE_MAP = {
+    'посредническ':'Агентский', 'агентск':'Агентский', 'комиссионн':'Комиссионный',
+    'сервисн':'Сервисный', 'услуг':'Сервисный', 'оказани':'Сервисный'
+  };
+  function setField(id, val){
+    const el = document.getElementById(id);
+    if(el && val!=null){ el.value = val; el.classList.add('field-parsed'); el.classList.remove('field-empty-req'); }
+  }
+  function setAc(acId, val){
+    if(val){ acSet(acId, val); const el = document.getElementById('ac-'+acId); if(el) el.classList.add('field-parsed'); }
+  }
+  function markEmpty(id){
+    const el = document.getElementById(id);
+    if(el && !el.value) el.classList.add('field-empty-req');
+  }
+  const REQUIRED_IDS = ['f-client','f-inn-client','f-inn-ra','f-ra-name','f-contract-num','f-contract-date','f-contract-type','f-contract-subject'];
+
+  setAc('open-ag', card.agency);
+  setAc('open-pl', card.platform);
+  if(card.platform) updateCurrency(card.platform, 'cur-open');
+  setAc('open-cab', card.account);
+  if(card.amount) setField('f-amount', card.amount);
+  setField('f-client', card.client);
+  setField('f-inn-client', card.inn_client);
+  setField('f-inn-ra', card.inn_ra);
+  setField('f-ra-name', card.ra_name);
+  setField('f-contract-num', card.contract_num);
+  if(card.contract_date){
+    const parts = card.contract_date.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+    if(parts) setField('f-contract-date', parts[3]+'-'+parts[2]+'-'+parts[1]);
+  }
+  if(card.contract_type){
+    const sel = document.getElementById('f-contract-type');
+    if(sel){
+      const key = Object.keys(CONTRACT_TYPE_MAP).find(function(k){ return card.contract_type.toLowerCase().includes(k); });
+      const mapped = key ? CONTRACT_TYPE_MAP[key] : null;
+      if(mapped){
+        Array.from(sel.options).forEach(function(o){ if(o.text===mapped){ sel.value = o.value||o.text; sel.classList.add('field-parsed'); } });
+      }
+    }
+  }
+  setField('f-contract-subject', card.contract_subject);
+  setField('f-access', card.access);
+  REQUIRED_IDS.forEach(markEmpty);
+  document.getElementById('ai-result').innerHTML = '<div style="font-size:12px;color:var(--green);padding:10px 0;font-family:var(--mono)">&#10003; Поля заполнены — проверьте выделенные и создайте заявку</div>';
+  document.getElementById('new-body').scrollTop = 0;
 }
 
 // ── GOOGLE SHEETS INTEGRATION ─────────────────────────────────────────────────
