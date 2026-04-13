@@ -999,7 +999,7 @@ function acInit(id, items, onPick){
       const div = document.createElement('div');
       div.className = 'ac-opt';
       div.dataset.idx = i;
-      div.innerHTML = highlight(lbl,q) + (sub ? `<span class="ac-opt-sub">${sub}</span>` : '');
+      div.innerHTML = `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlight(lbl,q)}</span>` + (sub ? `<span class="ac-opt-sub">${sub}</span>` : '');
       div.addEventListener('mousedown', e=>{ e.preventDefault(); acPick(id, lbl, sub); });
       return div;
     });
