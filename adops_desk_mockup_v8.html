@@ -1348,7 +1348,11 @@ function buildForm(type){
         <label class="form-label">Тип договора <span class="req">*</span></label>
         <select class="form-select" id="f-contract-type">
           <option value="">Выберите тип</option>
-          <option>Агентский</option><option>Комиссионный</option><option>Сервисный</option>
+          <option>Договор оказания услуг</option>
+          <option>Посреднический договор</option>
+          <option>Агентский договор</option>
+          <option>Самореклама</option>
+          <option>Дополнительное соглашение</option>
         </select>
       </div>
       <div class="form-group">
@@ -1646,9 +1650,22 @@ function applyParseToForm(){
 
 function fillOpenForm(card){
   const CONTRACT_TYPE_MAP = {
-    'посредническ':'Агентский', 'агентск':'Агентский', 'комиссионн':'Комиссионный',
-    'сервисн':'Сервисный', 'услуг':'Сервисный', 'оказани':'Сервисный'
+    'возмездного оказания': 'Договор оказания услуг',
+    'оказания услуг':       'Договор оказания услуг',
+    'посредническ':         'Посреднический договор',
+    'агентск':              'Агентский договор',
+    'самореклам':           'Самореклама',
+    'дополнительное':       'Дополнительное соглашение',
+    'доп. соглашение':      'Дополнительное соглашение',
   };
+  // Убираем кавычки и организационно-правовые формы из названий (кроме ИП)
+  function cleanName(str){
+    if(!str) return str;
+    return str
+      .replace(/[«»""]/g, '')
+      .replace(/^(ООО|АО|ПАО|ЗАО|НКО)\s+/i, '')
+      .trim();
+  }
   function setField(id, val){
     const el = document.getElementById(id);
     if(el && val!=null){ el.value = val; el.classList.add('field-parsed'); el.classList.remove('field-empty-req'); }
@@ -1662,15 +1679,15 @@ function fillOpenForm(card){
   }
   const REQUIRED_IDS = ['f-client','f-inn-client','f-inn-ra','f-ra-name','f-contract-num','f-contract-date','f-contract-type','f-contract-subject'];
 
-  setAc('open-ag', card.agency);
+  setAc('open-ag', cleanName(card.agency));
   setAc('open-pl', card.platform);
   if(card.platform) updateCurrency(card.platform, 'cur-open');
   setAc('open-cab', card.account);
   if(card.amount) setField('f-amount', card.amount);
-  setField('f-client', card.client);
+  setField('f-client', cleanName(card.client));
   setField('f-inn-client', card.inn_client);
   setField('f-inn-ra', card.inn_ra);
-  setField('f-ra-name', card.ra_name);
+  setField('f-ra-name', cleanName(card.ra_name));
   setField('f-contract-num', card.contract_num);
   if(card.contract_date){
     const parts = card.contract_date.match(/(\d{2})\.(\d{2})\.(\d{4})/);
@@ -1679,10 +1696,13 @@ function fillOpenForm(card){
   if(card.contract_type){
     const sel = document.getElementById('f-contract-type');
     if(sel){
-      const key = Object.keys(CONTRACT_TYPE_MAP).find(function(k){ return card.contract_type.toLowerCase().includes(k); });
+      const ct = card.contract_type.toLowerCase();
+      const key = Object.keys(CONTRACT_TYPE_MAP).find(function(k){ return ct.includes(k); });
       const mapped = key ? CONTRACT_TYPE_MAP[key] : null;
       if(mapped){
-        Array.from(sel.options).forEach(function(o){ if(o.text===mapped){ sel.value = o.value||o.text; sel.classList.add('field-parsed'); } });
+        Array.from(sel.options).forEach(function(o){
+          if(o.text === mapped){ sel.value = o.text; sel.classList.add('field-parsed'); }
+        });
       }
     }
   }
