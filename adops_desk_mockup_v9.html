@@ -297,7 +297,7 @@
   .ai-tag.ok   { background: var(--green-dim); color: var(--green); }
   .ai-tag.miss { background: var(--red-dim); color: var(--red); }
   .ai-spinner { display: flex; align-items: center; gap: 10px; color: var(--text2); font-size: 13px; padding: 20px 0; }
-  .ai-spin { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  .ai-spin { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .field-parsed { border-color: var(--green) !important; background: var(--green-dim) !important; }
   .field-empty-req { border-color: var(--yellow) !important; }
@@ -1290,6 +1290,17 @@ function buildForm(type){
 
   if(type==='OPEN'){
     const html = `
+    <div class="form-divider">Заполнить из текста</div>
+    <div class="form-group">
+      <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
+      <textarea class="ai-textarea" id="ai-input" placeholder="Вставьте текст из письма или сообщения в Telegram"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="btn-parse" onclick="runParse()"><span>&#9889; Распознать</span></button>
+      <button class="btn-primary" id="btn-fill-open" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyParseToForm()">Заполнить форму &rarr;</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="ai-hint">Поля будут заполнены автоматически</span>
+    </div>
+    <div id="ai-result"></div>
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Площадка <span class="req">*</span></label>
@@ -1305,7 +1316,7 @@ function buildForm(type){
       <div class="ac-note" id="open-cab-note">Введите название кабинета или выберите агентство для фильтрации</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Сумма пополнения, <span id="cur-open">руб. до НДС</span> <span class="opt">необязательно — заполните если нужно сразу пополнить кабинет</span></label>
+      <label class="form-label">Сумма пополнения, <span id="cur-open">руб. до НДС</span> <span class="opt">необязательно - заполните если нужно сразу пополнить кабинет</span></label>
       <input class="form-input" id="f-amount" type="number" placeholder="оставьте пустым если не нужно">
     </div>
     <div class="form-divider">Рекламодатель (ОРД)</div>
@@ -1364,16 +1375,6 @@ function buildForm(type){
       <label class="form-label">Кому выдать доступы <span class="opt">необязательно</span></label>
       <input class="form-input" id="f-access" type="text" placeholder="email@example.com или имя">
     </div>
-    <div class="form-divider">Заполнить из текста</div>
-    <div class="form-group">
-      <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
-      <textarea class="ai-textarea" id="ai-input" placeholder="Вставьте текст из письма или сообщения в Telegram"></textarea>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="btn-parse" onclick="runParse()"><span>⚡ Распознать</span></button>
-      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="ai-hint">Поля будут заполнены автоматически</span>
-    </div>
-    <div id="ai-result"></div>
     ${FILE_DROP}`;
     setTimeout(()=>initTriple('open', {curLabelId:'cur-open'}), 0);
     return html;
@@ -1381,6 +1382,17 @@ function buildForm(type){
 
   if(type==='TOP'){
     const html = `
+    <div class="form-divider">Заполнить из текста</div>
+    <div class="form-group">
+      <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
+      <textarea class="ai-textarea" id="top-ai-input" placeholder="Вставьте текст из письма или Telegram - кабинет и сумма определятся автоматически"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="top-btn-parse" style="background:var(--accent)" onclick="runTopParse()"><span>&#9889; Распознать</span></button>
+      <button class="btn-primary" id="btn-fill-top" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyTopParseToForm()">Заполнить форму &rarr;</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="top-ai-hint">Агентство, кабинет и сумма будут определены</span>
+    </div>
+    <div id="top-ai-result"></div>
     <div class="form-divider">Кабинет</div>
     <div class="form-group">
       <label class="form-label">Агентство (РА) <span class="req">*</span></label>
@@ -1404,16 +1416,6 @@ function buildForm(type){
       <label class="form-label">Комментарий <span class="opt">необязательно</span></label>
       <textarea class="form-textarea" id="top-comment" placeholder="Дополнительная информация..."></textarea>
     </div>
-    <div class="form-divider">Заполнить из текста</div>
-    <div class="form-group">
-      <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
-      <textarea class="ai-textarea" id="top-ai-input" style="border-color:#3b82f6" placeholder="Вставьте текст из письма или Telegram — кабинет и сумма определятся автоматически"></textarea>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="top-btn-parse" style="background:var(--accent)" onclick="runTopParse()"><span>⚡ Распознать</span></button>
-      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="top-ai-hint">Агентство, кабинет и сумма будут определены</span>
-    </div>
-    <div id="top-ai-result"></div>
     ${FILE_DROP}`;
     setTimeout(()=>initTriple('top', {curLabelId:'cur-top'}), 0);
     return html;
@@ -1617,6 +1619,15 @@ function renderParseCards(){
   };
   const REQUIRED = ['account','platform','agency','client','inn_client','inn_ra','contract_num','contract_date','contract_type','contract_subject'];
   let html = '<div style="margin-top:14px">';
+  const anySelected = _parsedSelected.size>0 || _parsedCards.length===1;
+  const noSelHint = _parsedCards.length>1 && _parsedSelected.size===0
+    ? '<span style="font-size:11px;color:var(--text3);font-family:var(--mono)">выберите хотя бы одну</span>' : '';
+  // Активируем кнопку Заполнить форму наверху
+  const fillBtn = document.getElementById('btn-fill-open');
+  if(fillBtn){
+    if(anySelected){ fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto'; }
+    else { fillBtn.style.opacity='0.4'; fillBtn.style.pointerEvents='none'; }
+  }
   if(_parsedCards.length>1){
     html += '<div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-family:var(--mono)">Выберите заявки для создания:</div>';
   }
@@ -1642,13 +1653,7 @@ function renderParseCards(){
       + missing.map(function(k){ return '<span class="ai-tag miss">'+(FIELD_LABELS[k]||k)+'</span>'; }).join('')
       + '</div></div>';
   });
-  const anySelected = _parsedSelected.size>0 || _parsedCards.length===1;
-  const noSelHint = _parsedCards.length>1 && _parsedSelected.size===0
-    ? '<span style="font-size:11px;color:var(--text3);font-family:var(--mono)">выберите хотя бы одну</span>' : '';
-  html += '<div style="display:flex;gap:8px;align-items:center;margin-top:12px">'
-    + '<button class="btn-primary" style="font-size:12px;padding:7px 16px" onclick="applyParseToForm()" '+(anySelected?'':'disabled')+'>Заполнить форму &rarr;</button>'
-    + noSelHint
-    + '</div></div>';
+  html += '</div>';
   el.innerHTML = html;
 }
 
@@ -1745,6 +1750,11 @@ function renderTopParseCard(card){
   const okAgency  = card.agency!=null;
   const okAccount = card.account!=null;
   const okAmount  = card.amount!=null;
+  // Сохраняем карточку для кнопки наверху
+  renderTopParseCard._last = card;
+  // Активируем кнопку Заполнить форму наверху
+  const fillBtn = document.getElementById('btn-fill-top');
+  if(fillBtn){ fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto'; }
   el.innerHTML = '<div style="margin-top:14px">'
     + '<div class="ai-result-card selected" style="border-color:var(--accent)">'
     + '<div class="ai-card-header"><span class="ai-card-num">Заявка</span>'
@@ -1755,10 +1765,12 @@ function renderTopParseCard(card){
     + (okAgency  ? '<span class="ai-tag ok">агентство</span>'  : '<span class="ai-tag miss">агентство</span>')
     + (okAccount ? '<span class="ai-tag ok">кабинет</span>'    : '<span class="ai-tag miss">кабинет</span>')
     + (okAmount  ? '<span class="ai-tag ok">сумма</span>'      : '<span class="ai-tag miss">сумма</span>')
-    + '</div></div>'
-    + '<div style="display:flex;gap:8px;align-items:center;margin-top:12px">'
-    + '<button class="btn-primary" style="font-size:12px;padding:7px 16px" onclick="fillTopForm('+JSON.stringify(card)+')">Заполнить форму &rarr;</button>'
-    + '</div></div>';
+    + '</div></div></div>';
+}
+
+function applyTopParseToForm(){
+  const card = renderTopParseCard._last;
+  if(card) fillTopForm(card);
 }
 
 function fillTopForm(card){
