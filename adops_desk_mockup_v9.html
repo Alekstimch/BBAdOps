@@ -1623,8 +1623,13 @@ function renderParseCards(){
   // Активируем кнопку Заполнить форму наверху
   const fillBtn = document.getElementById('btn-fill-open');
   if(fillBtn){
-    if(anySelected){ fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto'; }
-    else { fillBtn.style.opacity='0.4'; fillBtn.style.pointerEvents='none'; }
+    if(anySelected){
+      fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto';
+      fillBtn.className='btn-primary';
+    } else {
+      fillBtn.style.opacity='0.35'; fillBtn.style.pointerEvents='none';
+      fillBtn.className='btn-secondary';
+    }
   }
   if(_parsedCards.length>1){
     html += '<div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-family:var(--mono)">Выберите заявки для создания:</div>';
@@ -1752,7 +1757,7 @@ function renderTopParseCard(card){
   renderTopParseCard._last = card;
   // Активируем кнопку Заполнить форму наверху
   const fillBtn = document.getElementById('btn-fill-top');
-  if(fillBtn){ fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto'; }
+  if(fillBtn){ fillBtn.style.opacity='1'; fillBtn.style.pointerEvents='auto'; fillBtn.className='btn-primary'; }
   el.innerHTML = '<div style="margin-top:14px">'
     + '<div class="ai-result-card selected" style="border-color:var(--accent)">'
     + '<div class="ai-card-header"><span class="ai-card-num">Заявка</span>'
