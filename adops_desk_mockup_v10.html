@@ -1735,6 +1735,9 @@ function submitNew(){
   const platform = acVal(p+'-pl')  || '—';
   const account  = acVal(p+'-cab') || ('Новый кабинет · '+id);
 
+  // body объявляем сразу — используется и для клиента и для sourceId
+  const body = document.getElementById('new-body');
+
   // Клиент: из dataset (детальная форма) или из полей формы
   const clientFromDataset = body ? body.dataset.clientVal : null;
   const clientEl = document.getElementById('f-client')
@@ -1751,19 +1754,18 @@ function submitNew(){
     client, status:'НОВАЯ', wait:0, amount:amt
   });
 
-  // [v9] Если форма открыта из детали заявки — обновить статус исходной заявки
-  const body = document.getElementById('new-body');
+  // Если форма открыта из детали заявки — обновить статус исходной заявки
   const sourceId = body ? body.dataset.sourceId : null;
   const actionType = body ? body.dataset.actionType : null;
   if(sourceId && actionType){
     const source = rows.find(x=>x.id===sourceId);
     if(source){
-      const typeLabel = actionType==='TOP' ? 'TOP' : actionType==='CHANGE' ? 'CHANGE' : 'TECH';
       source.status = 'В РАБОТЕ';
-      source.type = typeLabel;
+      source.type = actionType;
     }
     delete body.dataset.sourceId;
     delete body.dataset.actionType;
+    delete body.dataset.clientVal;
   }
 
   closeNew();
