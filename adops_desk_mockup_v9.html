@@ -275,13 +275,13 @@
   .ai-textarea:focus { border-color: #f97316; }
   .ai-textarea::placeholder { color: var(--text3); }
   .btn-parse {
-    padding: 8px 18px; border-radius: 6px; border: none;
+    padding: 9px 20px; border-radius: 6px; border: none;
     background: var(--accent);
     color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 500;
     cursor: pointer; transition: all 0.15s;
   }
-  .btn-parse:hover { background: #2563eb; transform: translateY(-1px); }
-  .btn-parse:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-parse:hover { background: #2563eb; }
+  .btn-parse:disabled { opacity: 0.5; cursor: not-allowed; }
   .ai-result-card {
     background: var(--surface2); border: 1px solid var(--border2);
     border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px;
@@ -1295,10 +1295,9 @@ function buildForm(type){
       <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
       <textarea class="ai-textarea" id="ai-input" placeholder="Вставьте текст из письма или сообщения в Telegram"></textarea>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="btn-parse" onclick="runParse()"><span>&#9889; Распознать</span></button>
-      <button class="btn-primary" id="btn-fill-open" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyParseToForm()">Заполнить форму &rarr;</button>
-      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="ai-hint">Поля будут заполнены автоматически</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="btn-parse" onclick="runParse()">Распознать</button>
+      <button class="btn-secondary" id="btn-fill-open" style="opacity:0.35;pointer-events:none" onclick="applyParseToForm()">Заполнить</button>
     </div>
     <div id="ai-result"></div>
     <div class="form-divider">Кабинет</div>
@@ -1387,10 +1386,9 @@ function buildForm(type){
       <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
       <textarea class="ai-textarea" id="top-ai-input" placeholder="Вставьте текст из письма или Telegram - кабинет и сумма определятся автоматически"></textarea>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="top-btn-parse" style="background:var(--accent)" onclick="runTopParse()"><span>&#9889; Распознать</span></button>
-      <button class="btn-primary" id="btn-fill-top" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyTopParseToForm()">Заполнить форму &rarr;</button>
-      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="top-ai-hint">Агентство, кабинет и сумма будут определены</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="top-btn-parse" onclick="runTopParse()">Распознать</button>
+      <button class="btn-secondary" id="btn-fill-top" style="opacity:0.35;pointer-events:none" onclick="applyTopParseToForm()">Заполнить</button>
     </div>
     <div id="top-ai-result"></div>
     <div class="form-divider">Кабинет</div>
