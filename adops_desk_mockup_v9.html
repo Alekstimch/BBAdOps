@@ -275,13 +275,13 @@
   .ai-textarea:focus { border-color: #f97316; }
   .ai-textarea::placeholder { color: var(--text3); }
   .btn-parse {
-    padding: 9px 20px; border-radius: 6px; border: none;
+    padding: 8px 18px; border-radius: 6px; border: none;
     background: var(--accent);
     color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 500;
     cursor: pointer; transition: all 0.15s;
   }
-  .btn-parse:hover { background: #2563eb; }
-  .btn-parse:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-parse:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-parse:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
   .ai-result-card {
     background: var(--surface2); border: 1px solid var(--border2);
     border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px;
@@ -1295,9 +1295,10 @@ function buildForm(type){
       <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
       <textarea class="ai-textarea" id="ai-input" placeholder="Вставьте текст из письма или сообщения в Telegram"></textarea>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="btn-parse" onclick="runParse()">Распознать</button>
-      <button class="btn-secondary" id="btn-fill-open" style="opacity:0.35;pointer-events:none" onclick="applyParseToForm()">Заполнить</button>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="btn-parse" onclick="runParse()"><span>&#9889; Распознать</span></button>
+      <button class="btn-primary" id="btn-fill-open" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyParseToForm()">Заполнить форму &rarr;</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="ai-hint">Поля будут заполнены автоматически</span>
     </div>
     <div id="ai-result"></div>
     <div class="form-divider">Кабинет</div>
@@ -1386,9 +1387,10 @@ function buildForm(type){
       <label class="form-label">Вставьте текст заявки от агентства <span class="opt">необязательно</span></label>
       <textarea class="ai-textarea" id="top-ai-input" placeholder="Вставьте текст из письма или Telegram - кабинет и сумма определятся автоматически"></textarea>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <button class="btn-parse" id="top-btn-parse" onclick="runTopParse()">Распознать</button>
-      <button class="btn-secondary" id="btn-fill-top" style="opacity:0.35;pointer-events:none" onclick="applyTopParseToForm()">Заполнить</button>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+      <button class="btn-parse" id="top-btn-parse" style="background:var(--accent)" onclick="runTopParse()"><span>&#9889; Распознать</span></button>
+      <button class="btn-primary" id="btn-fill-top" style="font-size:12px;padding:7px 16px;opacity:0.4;pointer-events:none" onclick="applyTopParseToForm()">Заполнить форму &rarr;</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="top-ai-hint">Агентство, кабинет и сумма будут определены</span>
     </div>
     <div id="top-ai-result"></div>
     <div class="form-divider">Кабинет</div>
@@ -1543,7 +1545,7 @@ async function runParse(){
   const hint = document.getElementById('ai-hint');
   const resultEl = document.getElementById('ai-result');
   btn.disabled = true;
-  hint.textContent = 'Анализирую...';
+  if(hint) hint.textContent = 'Анализирую...';
   resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>Сейчас происходит магия...</div>';
   try {
     const resp = await fetch('https://web-production-a93d0.up.railway.app/api/parse-open', {
@@ -1558,11 +1560,11 @@ async function runParse(){
   }
   if(!Array.isArray(_parsedCards)||!_parsedCards.length){
     resultEl.innerHTML = '<div style="font-size:12px;color:var(--red);padding:12px 0">Не удалось распознать заявки — попробуйте другой текст</div>';
-    hint.textContent = 'Ошибка распознавания';
+    if(hint) hint.textContent = 'Ошибка распознавания';
     btn.disabled = false; return;
   }
   _parsedSelected = new Set(_parsedCards.length===1 ? [0] : []);
-  hint.textContent = 'Найдено заявок: ' + _parsedCards.length;
+  if(hint) hint.textContent = 'Найдено заявок: ' + _parsedCards.length;
   renderParseCards();
   btn.disabled = false;
 }
@@ -1705,7 +1707,7 @@ async function runTopParse(){
   const hint = document.getElementById('top-ai-hint');
   const resultEl = document.getElementById('top-ai-result');
   btn.disabled = true;
-  hint.textContent = 'Анализирую...';
+  if(hint) hint.textContent = 'Анализирую...';
   resultEl.innerHTML = '<div class="ai-spinner"><div class="ai-spin"></div>Распознаю заявку на пополнение...</div>';
   let card = null;
   try {
@@ -1733,7 +1735,7 @@ async function runTopParse(){
     const found = fuzzyFindAccount(text);
     if(found){ card.account = found.name; card.platform = found.platform; }
   }
-  hint.textContent = 'Готово';
+  if(hint) hint.textContent = 'Готово';
   renderTopParseCard(card);
   btn.disabled = false;
 }
