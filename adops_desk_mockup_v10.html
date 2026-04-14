@@ -264,6 +264,7 @@
   .new-tab.active.t-top    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
   .new-tab.active.t-change { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
   .new-tab.active.t-tech   { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+  .new-type-tabs.tabs-hidden { display: none; }
 
   /* AI PARSE */
   .ai-textarea {
@@ -947,6 +948,11 @@ function openDetailTop(id){
       <label class="form-label">Кабинет</label>
       ${acHtml('top-cab','')}
     </div>
+    <div class="form-divider">Рекламодатель</div>
+    <div class="form-group">
+      <label class="form-label">Клиент (юр. лицо)</label>
+      <input class="form-input" id="top-client" type="text" placeholder='ООО "Название"'>
+    </div>
     <div class="form-divider">Сумма</div>
     <div class="form-group">
       <label class="form-label">Сумма пополнения, <span id="cur-top">руб. до НДС</span> <span class="req">*</span></label>
@@ -957,15 +963,19 @@ function openDetailTop(id){
       <textarea class="form-textarea" id="top-comment" placeholder="Дополнительная информация..."></textarea>
     </div>
     ${FILE_DROP}`;
+  // Скрыть вкладки — форма открыта из детали
+  document.querySelector('.new-type-tabs').classList.add('tabs-hidden');
   setTimeout(()=>{
     initTriple('top', {curLabelId:'cur-top'});
     acSet('top-ag', r.agency);
     acSet('top-pl', r.platform);
     acSet('top-cab', r.account);
     updateCurrency(r.platform, 'cur-top');
-    // Сохраняем ссылку на исходную заявку для submitDetailAction
+    const tcf = document.getElementById('top-client');
+    if(tcf) tcf.value = r.client || '';
     body.dataset.sourceId = id;
     body.dataset.actionType = 'TOP';
+    body.dataset.clientVal = r.client || '';
   }, 0);
   document.getElementById('new-overlay').classList.add('open');
   document.getElementById('new-panel').classList.add('open');
@@ -997,6 +1007,11 @@ function openDetailChange(id){
       ${acHtml('chg-cab','')}
       <div class="ac-note" id="chg-cab-note"></div>
     </div>
+    <div class="form-divider">Рекламодатель</div>
+    <div class="form-group">
+      <label class="form-label">Клиент (юр. лицо)</label>
+      <input class="form-input" id="chg-client" type="text" placeholder="ООО &quot;Название&quot;">
+    </div>
     <div class="form-divider">Изменение</div>
     <div class="form-group">
       <label class="form-label">Тип изменения <span class="req">*</span></label>
@@ -1019,13 +1034,17 @@ function openDetailChange(id){
       <input class="form-input" id="chg-access" type="text" placeholder="email@example.com или имя">
     </div>
     ${FILE_DROP}`;
+  document.querySelector('.new-type-tabs').classList.add('tabs-hidden');
   setTimeout(()=>{
     initTriple('chg');
     acSet('chg-ag', r.agency);
     acSet('chg-pl', r.platform);
     acSet('chg-cab', r.account);
+    const cf = document.getElementById('chg-client');
+    if(cf) cf.value = r.client || '';
     body.dataset.sourceId = id;
     body.dataset.actionType = 'CHANGE';
+    body.dataset.clientVal = r.client || '';
   }, 0);
   document.getElementById('new-overlay').classList.add('open');
   document.getElementById('new-panel').classList.add('open');
@@ -1057,6 +1076,11 @@ function openDetailTech(id){
       ${acHtml('tech-cab','')}
       <div class="ac-note" id="tech-cab-note"></div>
     </div>
+    <div class="form-divider">Рекламодатель</div>
+    <div class="form-group">
+      <label class="form-label">Клиент (юр. лицо)</label>
+      <input class="form-input" id="tech-client" type="text" placeholder="ООО &quot;Название&quot;">
+    </div>
     <div class="form-divider">Проблема</div>
     <div class="form-group">
       <label class="form-label">Тема обращения <span class="req">*</span></label>
@@ -1074,13 +1098,17 @@ function openDetailTech(id){
       <textarea class="form-textarea" id="tech-desc" style="min-height:110px" placeholder="Что произошло, когда, как воспроизвести..."></textarea>
     </div>
     ${FILE_DROP}`;
+  document.querySelector('.new-type-tabs').classList.add('tabs-hidden');
   setTimeout(()=>{
     initTriple('tech');
     acSet('tech-ag', r.agency);
     acSet('tech-pl', r.platform);
     acSet('tech-cab', r.account);
+    const cf = document.getElementById('tech-client');
+    if(cf) cf.value = r.client || '';
     body.dataset.sourceId = id;
     body.dataset.actionType = 'TECH';
+    body.dataset.clientVal = r.client || '';
   }, 0);
   document.getElementById('new-overlay').classList.add('open');
   document.getElementById('new-panel').classList.add('open');
@@ -1105,6 +1133,9 @@ function openNew(type){
 function closeNew(){
   document.getElementById('new-overlay').classList.remove('open');
   document.getElementById('new-panel').classList.remove('open');
+  // Восстановить табы если были скрыты
+  const tabs = document.querySelector('.new-type-tabs');
+  if(tabs) tabs.classList.remove('tabs-hidden');
 }
 
 function switchType(type){
@@ -1704,9 +1735,15 @@ function submitNew(){
   const platform = acVal(p+'-pl')  || '—';
   const account  = acVal(p+'-cab') || ('Новый кабинет · '+id);
 
-  // Клиент: из формы OPEN или заглушка
-  const clientEl = document.getElementById('f-client');
-  const client = (clientEl && clientEl.value.trim()) ? clientEl.value.trim() : '—';
+  // Клиент: из dataset (детальная форма) или из полей формы
+  const clientFromDataset = body ? body.dataset.clientVal : null;
+  const clientEl = document.getElementById('f-client')
+    || document.getElementById('top-client')
+    || document.getElementById('chg-client')
+    || document.getElementById('tech-client');
+  const client = (clientFromDataset && clientFromDataset.trim())
+    ? clientFromDataset
+    : (clientEl && clientEl.value.trim()) ? clientEl.value.trim() : '—';
 
   rows.unshift({
     id, date:today, iso:isoDate,
