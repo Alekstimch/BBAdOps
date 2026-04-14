@@ -1716,7 +1716,6 @@ function buildForm(type){
 
 
 function submitNew(){
-  // [ОБНОВЛЕНО v9] Реальная дата и поля из формы
   const now = new Date();
   const dd = String(now.getDate()).padStart(2,'0');
   const mm = String(now.getMonth()+1).padStart(2,'0');
@@ -1724,50 +1723,53 @@ function submitNew(){
   const today = dd+'.'+mm+'.'+yy;
   const isoDate = now.toISOString().slice(0,10);
 
-  const id = 'AO-0'+String(nextId++).padStart(2,'0');
-  const amtInput = document.querySelector('#new-body input[type=number]');
-  const amt = amtInput ? parseInt(amtInput.value)||null : null;
-  const type = newType==='OPEN' && amt ? 'OPEN+TOP' : newType;
+  const body = document.getElementById('new-body');
+  const sourceId   = body ? body.dataset.sourceId   : null;
+  const actionType = body ? body.dataset.actionType : null;
 
-  const prefixMap = {OPEN:'open',TOP:'top',CHANGE:'chg',TECH:'tech'};
-  const p = prefixMap[newType] || 'open';
+  const prefixMap = {OPEN:'open', TOP:'top', CHANGE:'chg', TECH:'tech'};
+  const p        = prefixMap[newType] || 'open';
   const agency   = acVal(p+'-ag')  || '—';
   const platform = acVal(p+'-pl')  || '—';
-  const account  = acVal(p+'-cab') || ('Новый кабинет · '+id);
-
-  // body объявляем сразу — используется и для клиента и для sourceId
-  const body = document.getElementById('new-body');
-
-  // Клиент: из dataset (детальная форма) или из полей формы
-  const clientFromDataset = body ? body.dataset.clientVal : null;
+  const account  = acVal(p+'-cab') || '—';
+  const amtInput = document.querySelector('#new-body input[type=number]');
+  const amt      = amtInput ? parseInt(amtInput.value)||null : null;
   const clientEl = document.getElementById('f-client')
     || document.getElementById('top-client')
     || document.getElementById('chg-client')
     || document.getElementById('tech-client');
-  const client = (clientFromDataset && clientFromDataset.trim())
-    ? clientFromDataset
-    : (clientEl && clientEl.value.trim()) ? clientEl.value.trim() : '—';
+  const client = (clientEl && clientEl.value.trim()) ? clientEl.value.trim()
+    : (body && body.dataset.clientVal) ? body.dataset.clientVal : '—';
 
-  rows.unshift({
-    id, date:today, iso:isoDate,
-    platform, agency, type, account,
-    client, status:'НОВАЯ', wait:0, amount:amt
-  });
-
-  // Если форма открыта из детали заявки — обновить статус исходной заявки
-  const sourceId = body ? body.dataset.sourceId : null;
-  const actionType = body ? body.dataset.actionType : null;
+  // Форма открыта из детали — обновляем исходную строку, новую не создаём
   if(sourceId && actionType){
     const source = rows.find(x=>x.id===sourceId);
     if(source){
+      if(account && account!=='—') source.account = account;
+      if(client  && client !=='—') source.client  = client;
+      if(amt)                       source.amount  = amt;
+      source.type   = actionType;
       source.status = 'В РАБОТЕ';
-      source.type = actionType;
+      source.wait   = 0;
     }
     delete body.dataset.sourceId;
     delete body.dataset.actionType;
     delete body.dataset.clientVal;
+    closeNew();
+    renderTable();
+    showToast('Заявка '+sourceId+' обновлена \u00b7 '+actionType, 'success');
+    return;
   }
 
+  // Форма из верхнего меню — создаём новую строку
+  const id   = 'AO-0'+String(nextId++).padStart(2,'0');
+  const type = newType==='OPEN' && amt ? 'OPEN+TOP' : newType;
+  const accFinal = account!=='—' ? account : ('Новый кабинет \u00b7 '+id);
+  rows.unshift({
+    id, date:today, iso:isoDate,
+    platform, agency, type, account:accFinal,
+    client, status:'НОВАЯ', wait:0, amount:amt
+  });
   closeNew();
   renderTable();
   showToast('Заявка '+id+' создана \u00b7 '+type, 'success');
